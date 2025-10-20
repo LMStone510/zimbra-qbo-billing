@@ -2,6 +2,8 @@
 
 **Status**: ✅ Fully operational and tested with QuickBooks Sandbox
 
+> 👋 **New here?** Start with **0_PROJECT_OVERVIEW.md** for a friendly introduction!
+
 Automated monthly billing system that:
 - Fetches Zimbra email usage reports via SSH/SCP
 - Calculates monthly high-water marks per domain/CoS
@@ -128,7 +130,8 @@ python3 -m src.ui.cli sync-customers
 
 Read in order:
 
-1. **1_ZIMBRA_SERVER_SETUP.md** - 🔧 **START HERE!** Set up Zimbra server first
+0. **0_PROJECT_OVERVIEW.md** - 👋 **Start here!** Friendly introduction from Mark
+1. **1_ZIMBRA_SERVER_SETUP.md** - 🔧 Set up Zimbra server first
 2. **2_README.md** (this file) - Quick reference and overview
 3. **3_SETUP_GUIDE.md** - 📚 Complete guide from sandbox to production
 4. **4_QUICKSTART.md** - 5-minute setup guide
