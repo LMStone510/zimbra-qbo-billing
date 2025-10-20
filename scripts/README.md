@@ -42,7 +42,7 @@ This directory contains scripts that run on your Zimbra mailbox server(s).
 
 ## Installation
 
-See **ZIMBRA_SERVER_SETUP.md** in the project root for complete installation instructions.
+See **1_ZIMBRA_SERVER_SETUP.md** in the project root for complete installation instructions.
 
 ### Quick Install
 
@@ -62,7 +62,7 @@ sudo chmod 744 /opt/MonthlyUsageReports
 # Add to zimbra crontab
 sudo su - zimbra
 crontab -e
-# (Add the cron lines from ZIMBRA_SERVER_SETUP.md)
+# (Add the cron lines from 1_ZIMBRA_SERVER_SETUP.md)
 ```
 
 ## Testing
@@ -100,8 +100,8 @@ cat /opt/MonthlyUsageReports/MailboxUsage_*.txt
 ## Support
 
 For complete setup instructions and troubleshooting, see:
-- **ZIMBRA_SERVER_SETUP.md** - Full installation guide
-- **2_SETUP_GUIDE.md** - Complete system setup
+- **1_ZIMBRA_SERVER_SETUP.md** - Full installation guide
+- **3_SETUP_GUIDE.md** - Complete system setup
 
 ## License
 

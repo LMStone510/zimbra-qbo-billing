@@ -9,7 +9,7 @@ The application is already installed and configured! You can:
 - ✅ Generate reports
 - ✅ Create draft invoices in sandbox
 
-**To switch to Production QuickBooks**, see **2_SETUP_GUIDE.md** or **5_PRODUCTION.md**
+**To switch to Production QuickBooks**, see **3_SETUP_GUIDE.md** or **6_PRODUCTION.md**
 
 ## Quick Reference
 
@@ -177,8 +177,8 @@ python -m src.ui.cli --help
 python -m src.ui.cli run-monthly-billing --help
 
 # Detailed docs
-cat 4_USAGE.md
-cat 6_PROJECT_SUMMARY.md
+cat 5_USAGE.md
+cat 7_PROJECT_SUMMARY.md
 ```
 
 ## Important Notes
@@ -199,4 +199,4 @@ cat 6_PROJECT_SUMMARY.md
 
 ---
 
-**Need more help?** See `4_USAGE.md` for detailed documentation or `2_SETUP_GUIDE.md` for the complete setup process.
+**Need more help?** See `5_USAGE.md` for detailed documentation or `3_SETUP_GUIDE.md` for the complete setup process.

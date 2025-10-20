@@ -1021,12 +1021,12 @@ python3 -m src.ui.cli preview-invoices --year 2025 --month 3
 
 ### Support
 
-- **1_README.md** - Quick reference
-- **2_SETUP_GUIDE.md** (this file) - Complete setup guide
-- **3_QUICKSTART.md** - Quick reference
-- **4_USAGE.md** - Detailed usage
-- **5_PRODUCTION.md** - Production-specific details
-- **6_PROJECT_SUMMARY.md** - Technical overview
+- **2_README.md** - Quick reference
+- **3_SETUP_GUIDE.md** (this file) - Complete setup guide
+- **4_QUICKSTART.md** - Quick reference
+- **5_USAGE.md** - Detailed usage
+- **6_PRODUCTION.md** - Production-specific details
+- **7_PROJECT_SUMMARY.md** - Technical overview
 
 ---
 

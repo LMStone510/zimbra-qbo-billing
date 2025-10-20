@@ -13,10 +13,12 @@ Automated monthly billing system that:
 
 ### Prerequisites
 
+**⚠️ IMPORTANT: Set up Zimbra server FIRST!**
+
 **On Zimbra Server** (one-time setup):
 1. Install the usage report script
 2. Configure cron to generate weekly reports
-3. See **ZIMBRA_SERVER_SETUP.md** for complete instructions
+3. See **1_ZIMBRA_SERVER_SETUP.md** for complete instructions (DO THIS FIRST!)
 
 **On Billing Server**:
 
@@ -97,7 +99,7 @@ DATABASE_PATH=data/billing.db
 
 ## Switching to Production
 
-See **2_SETUP_GUIDE.md** for the complete process, or **5_PRODUCTION.md** for production-specific details.
+See **3_SETUP_GUIDE.md** for the complete process, or **6_PRODUCTION.md** for production-specific details.
 
 ## Common Commands
 
@@ -126,13 +128,13 @@ python3 -m src.ui.cli sync-customers
 
 Read in order:
 
-1. **1_README.md** (this file) - Quick reference and overview
-2. **ZIMBRA_SERVER_SETUP.md** - 🔧 Set up Zimbra server (do first!)
-3. **2_SETUP_GUIDE.md** - 📚 Complete guide from sandbox to production
-4. **3_QUICKSTART.md** - 5-minute setup guide
-5. **4_USAGE.md** - Detailed usage documentation
-6. **5_PRODUCTION.md** - Production-specific setup instructions
-7. **6_PROJECT_SUMMARY.md** - Technical architecture and features
+1. **1_ZIMBRA_SERVER_SETUP.md** - 🔧 **START HERE!** Set up Zimbra server first
+2. **2_README.md** (this file) - Quick reference and overview
+3. **3_SETUP_GUIDE.md** - 📚 Complete guide from sandbox to production
+4. **4_QUICKSTART.md** - 5-minute setup guide
+5. **5_USAGE.md** - Detailed usage documentation
+6. **6_PRODUCTION.md** - Production-specific setup instructions
+7. **7_PROJECT_SUMMARY.md** - Technical architecture and features
 
 ## Current Status
 

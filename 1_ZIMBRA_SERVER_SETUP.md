@@ -303,7 +303,7 @@ After completing this setup:
 
 1. ✅ Verify reports are being generated weekly
 2. ✅ Test SSH access from billing server
-3. ✅ Run the billing application (see 2_SETUP_GUIDE.md)
+3. ✅ Run the billing application (see 3_SETUP_GUIDE.md)
 4. ✅ Configure domain and CoS mappings
 5. ✅ Generate your first billing report
 
@@ -331,4 +331,4 @@ If you encounter issues:
 
 ---
 
-**Ready for billing?** After setting up the Zimbra server, proceed to 2_SETUP_GUIDE.md to configure the billing application.
+**Ready for billing?** After setting up the Zimbra server, proceed to 3_SETUP_GUIDE.md to configure the billing application.

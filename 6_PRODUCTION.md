@@ -1,6 +1,6 @@
 # Switching to Production QuickBooks
 
-> 📚 **New to this application?** See **2_SETUP_GUIDE.md** for the complete journey from initial installation through sandbox testing to production deployment.
+> 📚 **New to this application?** See **3_SETUP_GUIDE.md** for the complete journey from initial installation through sandbox testing to production deployment.
 
 This guide focuses specifically on switching from QuickBooks Sandbox to your Production QuickBooks company.
 
@@ -481,8 +481,8 @@ If you encounter issues:
 1. Check logs: `tail -f data/logs/*.log`
 2. Run with debug: `python3 -m src.ui.cli --debug <command>`
 3. Review this guide
-4. Check 4_USAGE.md for command details
-5. See 2_SETUP_GUIDE.md for complete setup process
+4. Check 5_USAGE.md for command details
+5. See 3_SETUP_GUIDE.md for complete setup process
 
 ## Summary
 

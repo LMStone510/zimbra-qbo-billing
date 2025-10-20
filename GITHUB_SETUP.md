@@ -118,7 +118,7 @@ On your GitHub repository page:
 
 ## Optional: Add README Badge
 
-Add a license badge to your README.md. At the top of 1_README.md, add:
+Add a license badge to your README.md. At the top of 2_README.md, add:
 
 ```markdown
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -249,12 +249,12 @@ After pushing, your repository will show:
 
 ```
 zimbra-qbo-billing/
-├── 1_README.md (displayed on GitHub homepage)
-├── 2_SETUP_GUIDE.md
-├── 3_QUICKSTART.md
-├── 4_USAGE.md
-├── 5_PRODUCTION.md
-├── 6_PROJECT_SUMMARY.md
+├── 2_README.md (displayed on GitHub homepage)
+├── 3_SETUP_GUIDE.md
+├── 4_QUICKSTART.md
+├── 5_USAGE.md
+├── 6_PRODUCTION.md
+├── 7_PROJECT_SUMMARY.md
 ├── LICENSE (MIT)
 ├── .gitignore
 ├── .env.example

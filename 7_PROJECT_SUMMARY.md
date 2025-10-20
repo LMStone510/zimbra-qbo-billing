@@ -206,12 +206,12 @@ The modular design allows easy extension:
 
 ## Documentation
 
-- `1_README.md` - Project overview
-- `2_SETUP_GUIDE.md` - Complete setup guide from sandbox to production
-- `3_QUICKSTART.md` - Quick reference
-- `4_USAGE.md` - Detailed usage guide with examples
-- `5_PRODUCTION.md` - Production-specific setup
-- `6_PROJECT_SUMMARY.md` - This file (technical architecture)
+- `2_README.md` - Project overview
+- `3_SETUP_GUIDE.md` - Complete setup guide from sandbox to production
+- `4_QUICKSTART.md` - Quick reference
+- `5_USAGE.md` - Detailed usage guide with examples
+- `6_PRODUCTION.md` - Production-specific setup
+- `7_PROJECT_SUMMARY.md` - This file (technical architecture)
 - Inline code documentation throughout
 
 ## Next Steps
@@ -245,8 +245,8 @@ The modular design allows easy extension:
 ## Support
 
 For questions or issues:
-1. Check 2_SETUP_GUIDE.md for complete setup process
-2. Check 4_USAGE.md for common tasks
+1. Check 3_SETUP_GUIDE.md for complete setup process
+2. Check 5_USAGE.md for common tasks
 3. Review logs in data/logs/
 4. Use --debug flag for verbose output
 5. Check configuration in .env and data/config.json
