@@ -4,8 +4,12 @@
 .env.*
 !.env.example
 
-# QuickBooks OAuth tokens
+# QuickBooks OAuth tokens and encryption keys
 data/qbo_tokens.enc
+data/.qbo_key
+
+# Configuration files with credentials (use .example versions)
+data/config.json
 
 # Database files
 data/billing.db
