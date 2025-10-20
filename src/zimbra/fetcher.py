@@ -22,11 +22,43 @@ from typing import List, Optional, Tuple
 from dateutil.relativedelta import relativedelta
 
 import paramiko
-from paramiko import SSHClient, AutoAddPolicy
+from paramiko import SSHClient, AutoAddPolicy, RejectPolicy, WarningPolicy
 
 from ..config import get_config
 
 logger = logging.getLogger(__name__)
+
+
+class StrictHostKeyPolicy(paramiko.MissingHostKeyPolicy):
+    """Strict host key policy that rejects unknown hosts.
+
+    This is more secure than AutoAddPolicy as it requires explicit
+    host key verification before connecting.
+    """
+
+    def missing_host_key(self, client, hostname, key):
+        """Called when an unknown host key is encountered.
+
+        Args:
+            client: SSHClient instance
+            hostname: Server hostname
+            key: Server's host key
+
+        Raises:
+            paramiko.SSHException: Always, to reject unknown hosts
+        """
+        key_type = key.get_name()
+        fingerprint = key.get_fingerprint().hex()
+        logger.error(
+            f"Host key verification failed for {hostname}\n"
+            f"  Key type: {key_type}\n"
+            f"  Fingerprint: {fingerprint}\n"
+            f"  Add this host to your SSH known_hosts file or configure host key verification."
+        )
+        raise paramiko.SSHException(
+            f"Server {hostname} not found in known_hosts. "
+            f"Fingerprint: {fingerprint}"
+        )
 
 
 class ZimbraFetcher:
@@ -34,7 +66,7 @@ class ZimbraFetcher:
 
     def __init__(self, host: Optional[str] = None, username: Optional[str] = None,
                  key_file: Optional[str] = None, port: int = 22,
-                 report_path: Optional[str] = None):
+                 report_path: Optional[str] = None, strict_host_key_check: bool = True):
         """Initialize Zimbra fetcher.
 
         Args:
@@ -43,6 +75,7 @@ class ZimbraFetcher:
             key_file: Path to SSH private key (uses config if None)
             port: SSH port (default: 22)
             report_path: Path to reports on server (uses config if None)
+            strict_host_key_check: If True, reject unknown hosts (default: True)
         """
         config = get_config()
 
@@ -51,6 +84,14 @@ class ZimbraFetcher:
         self.key_file = key_file or config.get('zimbra.key_file')
         self.port = port or config.get('zimbra.port', 22)
         self.report_path = report_path or config.get('zimbra.report_path')
+        self.strict_host_key_check = strict_host_key_check
+
+        # Check if user wants to override strict checking (not recommended)
+        if config.get('zimbra.allow_unknown_hosts', False):
+            logger.warning(
+                "zimbra.allow_unknown_hosts is enabled - this is INSECURE and not recommended for production"
+            )
+            self.strict_host_key_check = False
 
         # Expand user home directory in key_file path
         if self.key_file:
@@ -59,16 +100,44 @@ class ZimbraFetcher:
         self.client: Optional[SSHClient] = None
 
     def connect(self) -> None:
-        """Establish SSH connection to Zimbra server."""
+        """Establish SSH connection to Zimbra server with secure host key verification."""
         if not self.host:
             raise ValueError("Zimbra host not configured")
 
         logger.info(f"Connecting to Zimbra server {self.host} as {self.username}")
 
         self.client = SSHClient()
-        self.client.set_missing_host_key_policy(AutoAddPolicy())
+
+        # Load system SSH known_hosts
+        try:
+            self.client.load_system_host_keys()
+            logger.debug("Loaded system host keys")
+        except Exception as e:
+            logger.warning(f"Could not load system host keys: {e}")
+
+        # Load user's known_hosts
+        try:
+            known_hosts_path = os.path.expanduser('~/.ssh/known_hosts')
+            if os.path.exists(known_hosts_path):
+                self.client.load_host_keys(known_hosts_path)
+                logger.debug(f"Loaded host keys from {known_hosts_path}")
+        except Exception as e:
+            logger.warning(f"Could not load user host keys: {e}")
+
+        # Set host key policy based on configuration
+        if self.strict_host_key_check:
+            self.client.set_missing_host_key_policy(StrictHostKeyPolicy())
+            logger.debug("Using strict host key verification (secure)")
+        else:
+            self.client.set_missing_host_key_policy(AutoAddPolicy())
+            logger.warning("Using AutoAddPolicy for host keys (INSECURE - accepts any host)")
 
         try:
+            # Validate and sanitize remote path to prevent path traversal
+            if self.report_path:
+                if '..' in self.report_path or self.report_path.startswith('~'):
+                    raise ValueError(f"Invalid report path: {self.report_path}")
+
             if self.key_file and os.path.exists(self.key_file):
                 logger.debug(f"Using SSH key file: {self.key_file}")
                 self.client.connect(
@@ -76,7 +145,9 @@ class ZimbraFetcher:
                     port=self.port,
                     username=self.username,
                     key_filename=self.key_file,
-                    timeout=30
+                    timeout=30,
+                    look_for_keys=True,
+                    allow_agent=True
                 )
             else:
                 logger.debug("Using SSH agent authentication")
@@ -84,11 +155,16 @@ class ZimbraFetcher:
                     hostname=self.host,
                     port=self.port,
                     username=self.username,
-                    timeout=30
+                    timeout=30,
+                    look_for_keys=True,
+                    allow_agent=True
                 )
 
-            logger.info("SSH connection established")
+            logger.info("SSH connection established successfully")
 
+        except paramiko.SSHException as e:
+            logger.error(f"SSH authentication failed: {e}")
+            raise
         except Exception as e:
             logger.error(f"Failed to connect to Zimbra server: {e}")
             raise

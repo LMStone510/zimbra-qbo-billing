@@ -183,6 +183,7 @@ class InvoiceHistory(Base):
     total_amount = Column(Float, nullable=False)
     line_items_count = Column(Integer)
     status = Column(String(20), default='draft')  # draft, sent, paid, void
+    idempotency_key = Column(String(255), unique=True, nullable=True, index=True)  # For duplicate prevention
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     notes = Column(Text)

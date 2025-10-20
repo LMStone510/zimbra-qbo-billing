@@ -14,6 +14,7 @@ Handles the logic of converting usage data into QBO invoices.
 """
 
 import logging
+import hashlib
 from datetime import datetime, date
 from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
@@ -54,16 +55,28 @@ class InvoiceGenerator:
         logger.info(f"Generating invoice for customer {customer_id} for {year}-{month:02d}")
 
         # Get customer
-        customer = self.query_helper.session.query(
-            self.query_helper.session.query.__self__.__class__
-        ).get(customer_id)
-
         from ..database.models import Customer
-        customer = self.query_helper.session.query(Customer).get(customer_id)
+        customer = self.query_helper.session.get(Customer, customer_id)
 
         if not customer:
             logger.error(f"Customer {customer_id} not found")
             return None
+
+        # Generate idempotency key
+        idempotency_key = self._generate_idempotency_key(customer.qbo_customer_id, year, month)
+
+        # Check if invoice already exists for this period
+        existing_invoice = self.query_helper.session.query(InvoiceHistory).filter(
+            InvoiceHistory.idempotency_key == idempotency_key
+        ).first()
+
+        if existing_invoice:
+            logger.info(
+                f"Invoice already exists for customer {customer_id} "
+                f"for {year}-{month:02d} (QBO ID: {existing_invoice.qbo_invoice_id}). "
+                f"Skipping duplicate creation."
+            )
+            return existing_invoice.qbo_invoice_id
 
         # Get domains for customer
         domains = self.query_helper.get_domains_for_customer(customer_id)
@@ -82,7 +95,7 @@ class InvoiceGenerator:
                 MonthlyHighwater.year == year,
                 MonthlyHighwater.month == month,
                 MonthlyHighwater.domain_id == domain.id,
-                MonthlyHighwater.billable == True
+                MonthlyHighwater.billable.is_(True)
             ).all()
 
             for hw in highwater_records:
@@ -141,7 +154,8 @@ class InvoiceGenerator:
                 year=year,
                 month=month,
                 total_amount=total_amount,
-                line_items_count=len(line_items)
+                line_items_count=len(line_items),
+                idempotency_key=idempotency_key
             )
 
             logger.info(f"Created invoice {invoice.Id} for ${total_amount:.2f}")
@@ -214,7 +228,7 @@ class InvoiceGenerator:
         """
         from ..database.models import Customer
 
-        customer = self.query_helper.session.query(Customer).get(customer_id)
+        customer = self.query_helper.session.get(Customer, customer_id)
 
         if not customer:
             return {'error': 'Customer not found'}
@@ -229,7 +243,7 @@ class InvoiceGenerator:
                 MonthlyHighwater.year == year,
                 MonthlyHighwater.month == month,
                 MonthlyHighwater.domain_id == domain.id,
-                MonthlyHighwater.billable == True
+                MonthlyHighwater.billable.is_(True)
             ).all()
 
             for hw in highwater_records:
@@ -313,7 +327,7 @@ class InvoiceGenerator:
         # Collect unique customer IDs
         customer_ids = set()
         for hw in highwater_records:
-            domain = self.query_helper.session.query(Domain).get(hw.domain_id)
+            domain = self.query_helper.session.get(Domain, hw.domain_id)
             if domain:
                 customer_ids.add(domain.customer_id)
 
@@ -321,7 +335,7 @@ class InvoiceGenerator:
 
     def _record_invoice_history(self, qbo_invoice_id: str, customer_id: int,
                                 year: int, month: int, total_amount: float,
-                                line_items_count: int) -> None:
+                                line_items_count: int, idempotency_key: str) -> None:
         """Record invoice in history table.
 
         Args:
@@ -331,6 +345,7 @@ class InvoiceGenerator:
             month: Billing month
             total_amount: Total invoice amount
             line_items_count: Number of line items
+            idempotency_key: Unique key to prevent duplicates
         """
         history = InvoiceHistory(
             qbo_invoice_id=qbo_invoice_id,
@@ -340,13 +355,14 @@ class InvoiceGenerator:
             invoice_date=datetime.utcnow(),
             total_amount=total_amount,
             line_items_count=line_items_count,
-            status='draft'
+            status='draft',
+            idempotency_key=idempotency_key
         )
 
         self.query_helper.session.add(history)
         self.query_helper.session.commit()
 
-        logger.debug(f"Recorded invoice {qbo_invoice_id} in history")
+        logger.debug(f"Recorded invoice {qbo_invoice_id} in history with idempotency key {idempotency_key}")
 
     def _get_month_name(self, month: int) -> str:
         """Get month name from number.
@@ -363,6 +379,26 @@ class InvoiceGenerator:
         ]
         return months[month - 1] if 1 <= month <= 12 else str(month)
 
+    def _generate_idempotency_key(self, qbo_customer_id: str, year: int, month: int) -> str:
+        """Generate a unique idempotency key for invoice creation.
+
+        The key is based on QBO customer ID, year, and month to ensure each
+        customer gets at most one invoice per billing period.
+
+        Args:
+            qbo_customer_id: QuickBooks customer ID
+            year: Billing year
+            month: Billing month
+
+        Returns:
+            Idempotency key string
+        """
+        # Create a deterministic key from the inputs
+        key_string = f"{qbo_customer_id}|{year}|{month:02d}"
+        # Hash it for consistent length and to avoid special characters
+        key_hash = hashlib.sha256(key_string.encode()).hexdigest()[:32]
+        return f"inv_{year}{month:02d}_{key_hash}"
+
 
 # Helper method addition to QueryHelper
 def get_cos_mapping_by_id(self, cos_id: int):
@@ -375,7 +411,7 @@ def get_cos_mapping_by_id(self, cos_id: int):
         CoSMapping object or None
     """
     from ..database.models import CoSMapping
-    return self.session.query(CoSMapping).get(cos_id)
+    return self.session.get(CoSMapping, cos_id)
 
 
 # Add the method to QueryHelper class

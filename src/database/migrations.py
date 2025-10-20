@@ -12,7 +12,7 @@
 
 import logging
 from pathlib import Path
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Optional
 
@@ -145,6 +145,30 @@ class DatabaseManager:
         logger.info(f"Database backed up to {backup_path}")
         return str(backup_path)
 
+    def apply_migrations(self) -> None:
+        """Apply database schema migrations.
+
+        This checks for and applies any necessary schema changes to existing databases.
+        """
+        logger.info("Checking for database migrations...")
+
+        inspector = inspect(self.engine)
+
+        # Migration 1: Add idempotency_key to invoice_history
+        if 'invoice_history' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('invoice_history')]
+            if 'idempotency_key' not in columns:
+                logger.info("Applying migration: Adding idempotency_key to invoice_history")
+                with self.engine.connect() as conn:
+                    # Add the column (nullable for existing records)
+                    conn.execute(text('ALTER TABLE invoice_history ADD COLUMN idempotency_key VARCHAR(255)'))
+                    # Create index
+                    conn.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS idx_invoice_idempotency ON invoice_history(idempotency_key)'))
+                    conn.commit()
+                logger.info("Migration applied successfully")
+
+        logger.info("All migrations complete")
+
 
 # Global database manager instance
 _db_manager: Optional[DatabaseManager] = None
@@ -181,5 +205,7 @@ def init_database(database_path: Optional[str] = None) -> DatabaseManager:
         db_manager.initialize_database()
     else:
         logger.info("Database already exists")
+        # Apply any pending migrations
+        db_manager.apply_migrations()
 
     return db_manager

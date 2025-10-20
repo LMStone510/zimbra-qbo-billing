@@ -1,5 +1,23 @@
 # Usage Guide
 
+## Command Syntax
+
+This guide uses `python -m src.ui.cli` for all commands, which works on all platforms without additional setup.
+
+**Alternative**: After installing with `pip install -e .`, you can also use:
+```bash
+zimbra-billing <command>
+```
+
+For example:
+```bash
+# These are equivalent:
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10
+zimbra-billing run-monthly-billing --year 2025 --month 10
+```
+
+All examples below use `python -m src.ui.cli` for consistency.
+
 ## Initial Setup
 
 ### 1. Install Dependencies
@@ -58,7 +76,7 @@ python -m src.ui.cli test-connections
 
 ## Monthly Billing Workflow
 
-### Full Automated Run
+### Full Automated Run (Interactive)
 
 ```bash
 python -m src.ui.cli run-monthly-billing --year 2025 --month 10
@@ -70,6 +88,34 @@ This will:
 3. Prompt for any new domains/CoS (interactive reconciliation)
 4. Generate draft invoices in QBO
 5. Create Excel report
+
+### Automated Run (Non-Interactive for Cron/Scheduling)
+
+```bash
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --non-interactive
+```
+
+Perfect for scheduled/automated runs:
+- Skips all interactive prompts
+- Uses safe defaults for unmapped items
+- Reports what needs manual attention
+- Prevents duplicate invoices with idempotency
+- Safe to re-run the same period
+
+### Automated Run with JSON Output (CI/CD Pipelines)
+
+```bash
+python -m src.ui.cli run-monthly-billing \
+  --year 2025 --month 10 \
+  --non-interactive \
+  --json-output /var/log/billing/2025-10-summary.json
+```
+
+Generates machine-readable JSON summary with:
+- Invoice counts and amounts
+- Success/failure details
+- Skipped items for reconciliation
+- Overall run status
 
 ### Step-by-Step Workflow
 
@@ -114,7 +160,38 @@ python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --skip-reconcili
 
 # Skip invoice generation (report only)
 python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --skip-invoices
+
+# Non-interactive mode (for automation)
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --non-interactive
+
+# With JSON output for machine processing
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --json-output summary.json
 ```
+
+### Safe Re-runs and Idempotency
+
+**The system now prevents duplicate invoices automatically.**
+
+You can safely re-run the same billing period multiple times:
+
+```bash
+# First run - creates invoices
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10
+
+# Second run (same period) - skips existing invoices
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10
+```
+
+The system will:
+- Detect invoices already created for that period
+- Skip creating duplicates
+- Log which invoices were skipped
+- Process only new/missing invoices
+
+This is safe for:
+- Recovering from partial failures
+- Re-running after fixing data issues
+- Testing invoice generation multiple times
 
 ## Command Reference
 
@@ -132,9 +209,19 @@ python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --skip-invoices
 
 ### Command Options
 
-Most commands support:
+**Global Options** (most commands):
 - `--debug` - Enable debug logging
 - `--config PATH` - Use custom config file
+
+**run-monthly-billing Options**:
+- `--year YEAR` - Billing year (default: current year)
+- `--month MONTH` - Billing month (default: last month)
+- `--skip-fetch` - Skip fetching reports (use existing data)
+- `--skip-reconciliation` - Skip reconciliation prompts
+- `--skip-invoices` - Skip invoice generation (report only)
+- `--draft` - Create draft invoices (default: true)
+- `--non-interactive` - Run without prompts (for automation)
+- `--json-output PATH` - Write JSON summary to file
 
 ## Typical Monthly Process
 
@@ -146,8 +233,57 @@ Most commands support:
 5. Map all CoS to QBO items
 
 ### Monthly Billing (Recurring)
+
+**Interactive Mode** (first few months):
 1. Run billing command for previous month
 2. Review and approve any new domain/CoS assignments
+3. Verify draft invoices in QuickBooks
+4. Send invoices to customers
+
+**Automated Mode** (once stable):
+1. Set up cron job or scheduled task
+2. Run with `--non-interactive` flag
+3. System auto-processes known items
+4. Check JSON summary for any issues
+5. Manually reconcile only new items
+
+### Scheduled/Automated Billing
+
+Once your domain and CoS mappings are stable, you can automate monthly billing:
+
+#### Linux/macOS Cron Example
+
+```bash
+# Edit crontab
+crontab -e
+
+# Run on 1st of each month at 2 AM
+0 2 1 * * cd ~/zimbra-qbo-billing && python3 -m src.ui.cli run-monthly-billing --non-interactive --json-output /var/log/billing/$(date +\%Y-\%m).json 2>&1 | logger -t zimbra-billing
+```
+
+#### Windows Task Scheduler
+
+1. Open Task Scheduler
+2. Create Basic Task
+3. Trigger: Monthly (1st day, 2:00 AM)
+4. Action: Start a program
+   - Program: `python`
+   - Arguments: `-m src.ui.cli run-monthly-billing --non-interactive --json-output C:\billing-logs\summary.json`
+   - Start in: `C:\zimbra-qbo-billing`
+
+#### Monitoring Automated Runs
+
+Check the JSON output file:
+```bash
+# View summary
+cat /var/log/billing/2025-10.json | jq '.status'
+
+# Check for failures
+cat /var/log/billing/2025-10.json | jq '.failures'
+
+# See skipped items
+cat /var/log/billing/2025-10.json | jq '.reconciliation.items'
+```
 3. Review generated invoices in QBO (they're drafts)
 4. Review Excel report
 5. Send invoices from QBO

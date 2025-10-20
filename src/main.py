@@ -21,8 +21,10 @@ Coordinates the complete monthly billing workflow:
 
 import logging
 import sys
+import json
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
 
 import click
 
@@ -44,7 +46,8 @@ logger = logging.getLogger(__name__)
 
 def run_monthly_billing(year: int, month: int, skip_fetch: bool = False,
                        skip_reconciliation: bool = False, skip_invoices: bool = False,
-                       draft: bool = True) -> None:
+                       draft: bool = True, non_interactive: bool = False,
+                       json_output: Optional[str] = None) -> None:
     """Run the complete monthly billing workflow.
 
     Args:
@@ -54,8 +57,12 @@ def run_monthly_billing(year: int, month: int, skip_fetch: bool = False,
         skip_reconciliation: Skip interactive reconciliation
         skip_invoices: Skip invoice generation
         draft: Create invoices as drafts
+        non_interactive: Run in non-interactive mode (skip all prompts)
+        json_output: Optional path to write JSON summary
     """
     logger.info(f"Starting monthly billing for {year}-{month:02d}")
+    if non_interactive:
+        logger.info("Running in non-interactive mode")
 
     # Initialize database
     db_manager = init_database()
@@ -84,7 +91,7 @@ def run_monthly_billing(year: int, month: int, skip_fetch: bool = False,
             highwater_data = {}
             for hw in highwater_records:
                 from .database.models import Domain
-                domain = query_helper.session.query(Domain).get(hw.domain_id)
+                domain = query_helper.session.get(Domain, hw.domain_id)
                 cos = query_helper.get_cos_mapping_by_id(hw.cos_id)
                 if domain and cos:
                     highwater_data[(domain.domain_name, cos.cos_name)] = {
@@ -96,7 +103,11 @@ def run_monthly_billing(year: int, month: int, skip_fetch: bool = False,
         # Step 3: Reconciliation
         if not skip_reconciliation:
             click.echo("\n[3/6] Running reconciliation...")
-            run_reconciliation(highwater_data, query_helper, year, month)
+            prompter = run_reconciliation(highwater_data, query_helper, year, month, non_interactive)
+
+            # Display skipped items summary if in non-interactive mode
+            if non_interactive and prompter:
+                prompter.display_skipped_summary()
         else:
             click.echo("\n[3/6] Skipping reconciliation")
 
@@ -122,6 +133,15 @@ def run_monthly_billing(year: int, month: int, skip_fetch: bool = False,
         # Step 6: Display summary
         click.echo("\n[6/6] Billing Summary")
         display_summary(invoice_results, report_path, year, month, query_helper)
+
+        # Generate JSON summary if requested
+        if json_output:
+            json_summary = generate_json_summary(
+                invoice_results, report_path, year, month,
+                query_helper, prompter if not skip_reconciliation else None
+            )
+            write_json_summary(json_summary, json_output)
+            click.echo(f"\nJSON summary written to: {json_output}")
 
         session.commit()
 
@@ -213,7 +233,7 @@ def store_usage_data(parsed_data: list, query_helper: QueryHelper) -> None:
 
 
 def run_reconciliation(highwater_data: dict, query_helper: QueryHelper,
-                      year: int, month: int) -> None:
+                      year: int, month: int, non_interactive: bool = False) -> Optional[ReconciliationPrompter]:
     """Run interactive reconciliation.
 
     Args:
@@ -221,9 +241,13 @@ def run_reconciliation(highwater_data: dict, query_helper: QueryHelper,
         query_helper: Database query helper
         year: Year
         month: Month
+        non_interactive: Run in non-interactive mode
+
+    Returns:
+        ReconciliationPrompter instance (for accessing skipped items)
     """
     detector = ChangeDetector(query_helper.session)
-    prompter = ReconciliationPrompter(query_helper)
+    prompter = ReconciliationPrompter(query_helper, interactive=not non_interactive)
     mapper = MappingManager(query_helper)
 
     # Extract current domains and CoS
@@ -290,7 +314,20 @@ def run_reconciliation(highwater_data: dict, query_helper: QueryHelper,
                 )
 
     query_helper.session.commit()
-    click.echo(click.style("\nReconciliation completed", fg='green'))
+
+    if non_interactive:
+        skipped = prompter.get_skipped_items()
+        if skipped:
+            click.echo(click.style(
+                f"\nReconciliation completed ({len(skipped)} items skipped in non-interactive mode)",
+                fg='yellow'
+            ))
+        else:
+            click.echo(click.style("\nReconciliation completed", fg='green'))
+    else:
+        click.echo(click.style("\nReconciliation completed", fg='green'))
+
+    return prompter
 
 
 def generate_invoices(query_helper: QueryHelper, year: int, month: int,
@@ -371,6 +408,102 @@ def display_summary(invoice_results: dict, report_path: str, year: int, month: i
             click.echo(f"  Customer ID {failed['customer_id']}: {failed['error']}")
 
     click.echo("\n" + "="*60)
+
+
+def generate_json_summary(invoice_results: dict, report_path: str, year: int, month: int,
+                          query_helper: QueryHelper, prompter: Optional[ReconciliationPrompter] = None) -> dict:
+    """Generate machine-readable JSON summary of billing run.
+
+    Args:
+        invoice_results: Invoice generation results
+        report_path: Path to Excel report
+        year: Year
+        month: Month
+        query_helper: Database query helper
+        prompter: Optional reconciliation prompter (for skipped items)
+
+    Returns:
+        Dictionary with billing summary data
+    """
+    from .database.models import InvoiceHistory
+
+    # Get invoice data
+    invoices = query_helper.session.query(InvoiceHistory).filter(
+        InvoiceHistory.billing_year == year,
+        InvoiceHistory.billing_month == month
+    ).all()
+
+    invoice_details = []
+    total_amount = 0.0
+
+    for inv in invoices:
+        invoice_details.append({
+            'qbo_invoice_id': inv.qbo_invoice_id,
+            'customer_id': inv.customer_id,
+            'total_amount': inv.total_amount,
+            'line_items_count': inv.line_items_count,
+            'status': inv.status,
+            'created_at': inv.created_at.isoformat() if inv.created_at else None
+        })
+        total_amount += inv.total_amount
+
+    # Collect skipped items if available
+    skipped_items = []
+    if prompter:
+        skipped_items = prompter.get_skipped_items()
+
+    summary = {
+        'run_metadata': {
+            'timestamp': datetime.utcnow().isoformat(),
+            'billing_period': {
+                'year': year,
+                'month': month
+            },
+            'version': '0.10.0'
+        },
+        'invoices': {
+            'total_count': len(invoices),
+            'success_count': len(invoice_results['success']),
+            'failed_count': len(invoice_results['failed']),
+            'total_amount': round(total_amount, 2),
+            'average_amount': round(total_amount / len(invoices), 2) if invoices else 0,
+            'details': invoice_details
+        },
+        'failures': [
+            {
+                'customer_id': f['customer_id'],
+                'error': f['error']
+            }
+            for f in invoice_results['failed']
+        ],
+        'reconciliation': {
+            'skipped_domains': len([i for i in skipped_items if i['type'] == 'domain']),
+            'skipped_cos': len([i for i in skipped_items if i['type'] == 'cos']),
+            'items': skipped_items
+        },
+        'reports': {
+            'excel_path': report_path
+        },
+        'status': 'success' if not invoice_results['failed'] else 'partial_success'
+    }
+
+    return summary
+
+
+def write_json_summary(summary: dict, output_path: str) -> None:
+    """Write JSON summary to file.
+
+    Args:
+        summary: Summary dictionary
+        output_path: Path to output file
+    """
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_file, 'w') as f:
+        json.dump(summary, f, indent=2)
+
+    logger.info(f"JSON summary written to {output_path}")
 
 
 # Entry point for CLI

@@ -69,6 +69,8 @@ DELETE FROM change_log;
 
 **Important**: This step is critical to prevent mixing sandbox and production data.
 
+**Note**: The database schema will automatically migrate when you next run the application. If you see messages about adding an `idempotency_key` column, this is normal and expected. See `MIGRATION_GUIDE.md` for details.
+
 ### 3. Find Your Production Company ID
 
 You need your production QuickBooks Company ID (also called Realm ID).
@@ -111,13 +113,16 @@ Save and exit (Ctrl+O, Enter, Ctrl+X in nano).
 
 ### 5. Clear Sandbox Authorization
 
-Remove the sandbox OAuth tokens:
+Remove the sandbox OAuth tokens and encryption key:
 
 ```bash
 rm data/qbo_tokens.enc
+rm data/.qbo_key
 ```
 
-This forces a new authorization with production.
+This forces a new authorization with production and creates a new encryption key for production tokens.
+
+**Security Note**: Tokens are encrypted at rest using Fernet encryption. The system automatically manages encryption keys securely.
 
 ### 6. Re-Authorize with Production QuickBooks
 
@@ -502,9 +507,22 @@ python3 -m src.ui.cli sync-customers
 
 6. **Token Expiration**: Tokens refresh automatically for 101 days, then need re-authorization
 
+7. **Idempotency Protection**: The system now prevents duplicate invoices automatically. You can safely re-run billing for the same period without creating duplicates.
+
+8. **SSH Security**: By default, the system uses strict host key verification. Add your Zimbra server to `~/.ssh/known_hosts` before the first run:
+   ```bash
+   ssh-keyscan -H your-zimbra-host.com >> ~/.ssh/known_hosts
+   ```
+
+9. **Token Security**: OAuth tokens are encrypted at rest and masked in logs. Never commit `.qbo_key` or `qbo_tokens.enc` to version control.
+
+10. **Database Migrations**: The system automatically applies schema migrations. See `MIGRATION_GUIDE.md` for details.
+
 ## Monthly Production Workflow
 
 Once set up, your monthly workflow will be:
+
+### Interactive Mode (First Few Months)
 
 ```bash
 # First day of month - run billing for previous month
@@ -521,6 +539,33 @@ start data/billing_report_YYYY_MM.xlsx       # Windows
 
 # Send invoices when ready (in QuickBooks UI)
 ```
+
+### Automated Mode (Once Stable)
+
+After your mappings are stable, automate with cron/Task Scheduler:
+
+```bash
+# Non-interactive with JSON output
+python3 -m src.ui.cli run-monthly-billing \
+  --non-interactive \
+  --json-output /var/log/billing/summary.json
+
+# Check JSON for any issues
+cat /var/log/billing/summary.json | jq '.status'
+
+# Manually reconcile only new items if needed
+python3 -m src.ui.cli reconcile-domains
+python3 -m src.ui.cli reconcile-cos
+```
+
+**Benefits of Non-Interactive Mode**:
+- Safe to run in cron/scheduled tasks
+- Prevents duplicate invoices automatically
+- Skips unmapped items (reports them for manual review)
+- Machine-readable JSON output for monitoring
+- Can safely re-run if there are failures
+
+See `5_USAGE.md` for detailed automation examples.
 
 ## Support
 

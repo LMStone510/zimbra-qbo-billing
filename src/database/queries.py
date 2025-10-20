@@ -49,7 +49,7 @@ class QueryHelper:
         """
         query = self.session.query(Customer)
         if active_only:
-            query = query.filter(Customer.active == True)
+            query = query.filter(Customer.active.is_(True))
         return query.order_by(Customer.customer_name).all()
 
     def get_customer_by_qbo_id(self, qbo_id: str) -> Optional[Customer]:
@@ -115,7 +115,7 @@ class QueryHelper:
         """
         return self.session.query(Domain).filter(
             Domain.customer_id == customer_id,
-            Domain.active == True
+            Domain.active.is_(True)
         ).order_by(Domain.domain_name).all()
 
     def get_unassigned_domains(self) -> List[str]:
@@ -183,7 +183,7 @@ class QueryHelper:
         """
         exclusions = self.session.query(Exclusion).filter(
             Exclusion.exclusion_type == 'domain',
-            Exclusion.active == True
+            Exclusion.active.is_(True)
         ).all()
 
         for exclusion in exclusions:
@@ -202,7 +202,7 @@ class QueryHelper:
         """
         exclusions = self.session.query(Exclusion).filter(
             Exclusion.exclusion_type == 'cos',
-            Exclusion.active == True
+            Exclusion.active.is_(True)
         ).all()
 
         for exclusion in exclusions:
@@ -222,7 +222,7 @@ class QueryHelper:
         """
         return self.session.query(CoSMapping).filter(
             CoSMapping.cos_name == cos_name,
-            CoSMapping.active == True
+            CoSMapping.active.is_(True)
         ).first()
 
     def get_all_cos_mappings(self, active_only: bool = True) -> List[CoSMapping]:
@@ -236,7 +236,7 @@ class QueryHelper:
         """
         query = self.session.query(CoSMapping)
         if active_only:
-            query = query.filter(CoSMapping.active == True)
+            query = query.filter(CoSMapping.active.is_(True))
         return query.order_by(CoSMapping.cos_name).all()
 
     def create_cos_mapping(self, cos_name: str, qbo_item_id: str, qbo_item_name: str,
@@ -357,8 +357,8 @@ class QueryHelper:
 
         # Store highwater marks
         for (domain_id, cos_id), count in highwater_dict.items():
-            domain = self.session.query(Domain).get(domain_id)
-            cos = self.session.query(CoSMapping).get(cos_id)
+            domain = self.session.get(Domain, domain_id)
+            cos = self.session.get(CoSMapping, cos_id)
 
             # Check if should be billable
             billable = not (
@@ -407,7 +407,7 @@ class QueryHelper:
             MonthlyHighwater.month == month
         )
         if billable_only:
-            query = query.filter(MonthlyHighwater.billable == True)
+            query = query.filter(MonthlyHighwater.billable.is_(True))
         return query.all()
 
     # Helper methods

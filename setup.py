@@ -34,7 +34,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'zimbra-billing=src.main:cli',
+            'zimbra-billing=src.ui.cli:cli',
         ],
     },
     python_requires='>=3.8',

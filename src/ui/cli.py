@@ -56,7 +56,9 @@ def cli(debug, config):
 @click.option('--skip-reconciliation', is_flag=True, help='Skip reconciliation prompts')
 @click.option('--skip-invoices', is_flag=True, help='Skip invoice generation')
 @click.option('--draft', is_flag=True, default=True, help='Create draft invoices (default)')
-def run_monthly_billing(year, month, skip_fetch, skip_reconciliation, skip_invoices, draft):
+@click.option('--non-interactive', is_flag=True, help='Run in non-interactive mode (skip all prompts)')
+@click.option('--json-output', type=click.Path(), help='Write JSON summary to file')
+def run_monthly_billing(year, month, skip_fetch, skip_reconciliation, skip_invoices, draft, non_interactive, json_output):
     """Run the complete monthly billing workflow."""
     # Import here to avoid circular dependencies
     from ..main import run_monthly_billing as run_billing
@@ -73,6 +75,8 @@ def run_monthly_billing(year, month, skip_fetch, skip_reconciliation, skip_invoi
 
     click.echo(f"\n{'='*60}")
     click.echo(f"Starting monthly billing for {year}-{month:02d}")
+    if non_interactive:
+        click.echo(click.style("Running in NON-INTERACTIVE mode", fg='yellow', bold=True))
     click.echo(f"{'='*60}\n")
 
     try:
@@ -82,7 +86,9 @@ def run_monthly_billing(year, month, skip_fetch, skip_reconciliation, skip_invoi
             skip_fetch=skip_fetch,
             skip_reconciliation=skip_reconciliation,
             skip_invoices=skip_invoices,
-            draft=draft
+            draft=draft,
+            non_interactive=non_interactive,
+            json_output=json_output
         )
 
         click.echo(click.style("\n✓ Monthly billing completed successfully!", fg='green', bold=True))

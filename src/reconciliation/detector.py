@@ -81,7 +81,7 @@ class ChangeDetector:
         prev_domains = set()
 
         for hw in prev_highwater:
-            domain = self.session.query(Domain).get(hw.domain_id)
+            domain = self.session.get(Domain, hw.domain_id)
             if domain:
                 prev_domains.add(domain.domain_name)
 
@@ -102,7 +102,7 @@ class ChangeDetector:
         """
         # Get domains that exist in DB but were marked inactive
         inactive_domains = self.session.query(Domain).filter(
-            Domain.active == False
+            Domain.active.is_(False)
         ).all()
 
         reappeared = []
@@ -159,7 +159,7 @@ class ChangeDetector:
         """
         # Get domains from CoS discovery that aren't mapped
         unmapped = self.session.query(CoSDiscovery).filter(
-            CoSDiscovery.mapped == False
+            CoSDiscovery.mapped.is_(False)
         ).all()
 
         # This is a simplified check - in real implementation, you'd join through usage_data

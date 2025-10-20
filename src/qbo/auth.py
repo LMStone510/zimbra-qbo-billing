@@ -36,6 +36,20 @@ from cryptography.fernet import Fernet
 logger = logging.getLogger(__name__)
 
 
+def _mask_token(token: str) -> str:
+    """Mask a token for safe logging.
+
+    Args:
+        token: Token string to mask
+
+    Returns:
+        Masked token showing only first/last 4 chars
+    """
+    if not token or len(token) < 12:
+        return "***MASKED***"
+    return f"{token[:4]}...{token[-4:]}"
+
+
 class QBOAuthManager:
     """Manages OAuth2 authentication for QuickBooks Online."""
 
@@ -149,7 +163,7 @@ class QBOAuthManager:
         realm_id = params.get('realmId', [None])[0]
 
         if realm_id:
-            logger.info(f"Received authorization code and realm ID: {realm_id}")
+            logger.info(f"Received authorization for realm ID: {realm_id}")
             # Update company ID if provided
             config = get_config()
             config.set('qbo.company_id', realm_id)
@@ -194,8 +208,9 @@ class QBOAuthManager:
         response = requests.post(self.TOKEN_URL, headers=headers, data=data)
 
         if response.status_code != 200:
-            logger.error(f"Token exchange failed: {response.text}")
-            raise RuntimeError(f"Failed to exchange authorization code: {response.text}")
+            # Don't log response.text as it might contain sensitive data
+            logger.error(f"Token exchange failed with status {response.status_code}")
+            raise RuntimeError(f"Failed to exchange authorization code (status {response.status_code})")
 
         tokens = response.json()
 
@@ -245,8 +260,9 @@ class QBOAuthManager:
         response = requests.post(self.TOKEN_URL, headers=headers, data=data)
 
         if response.status_code != 200:
-            logger.error(f"Token refresh failed: {response.text}")
-            raise RuntimeError(f"Failed to refresh token: {response.text}")
+            # Don't log response.text as it might contain sensitive data
+            logger.error(f"Token refresh failed with status {response.status_code}")
+            raise RuntimeError(f"Failed to refresh token (status {response.status_code})")
 
         new_tokens = response.json()
 
@@ -256,10 +272,14 @@ class QBOAuthManager:
             datetime.utcnow() + timedelta(seconds=new_tokens.get('expires_in', 3600))
         ).isoformat()
 
-        # Save new tokens
+        # Save new tokens (which includes the new refresh token from Intuit)
         self.save_tokens(new_tokens)
 
-        logger.info("Successfully refreshed and saved tokens")
+        # Log success with masked token for security
+        if 'refresh_token' in new_tokens:
+            logger.info(f"Successfully refreshed and saved tokens (refresh token: {_mask_token(new_tokens['refresh_token'])})")
+        else:
+            logger.info("Successfully refreshed and saved tokens")
         return new_tokens
 
     def save_tokens(self, tokens: Dict) -> None:
@@ -368,7 +388,7 @@ class QBOAuthManager:
             if self.token_file.exists():
                 self.token_file.unlink()
         else:
-            logger.error(f"Token revocation failed: {response.text}")
+            logger.error(f"Token revocation failed with status {response.status_code}")
 
     def is_authorized(self) -> bool:
         """Check if we have valid authorization.

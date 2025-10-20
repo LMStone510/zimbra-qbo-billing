@@ -1086,6 +1086,55 @@ python3 -m src.ui.cli preview-invoices --year 2025 --month 3
 - **`data/billing_report_*.xlsx`** - Excel reports
 - **`data/logs/*.log`** - Application logs
 
+### Security Best Practices
+
+#### SSH Host Key Verification
+
+For secure connections to your Zimbra server, add it to known_hosts:
+
+```bash
+ssh-keyscan -H your-zimbra-host.com >> ~/.ssh/known_hosts
+```
+
+The system uses strict host key verification by default, which prevents MITM attacks.
+
+#### OAuth Token Security
+
+- Tokens are encrypted at rest using Fernet encryption
+- Token encryption keys stored in `data/.qbo_key` with restrictive permissions
+- Tokens automatically masked in logs
+- Never commit `.qbo_key` or `qbo_tokens.enc` to version control
+
+#### Database Migrations
+
+The system automatically applies schema updates when needed. See `MIGRATION_GUIDE.md` for details on:
+- Automatic migration process
+- Manual migration if needed
+- Backup and rollback procedures
+
+#### Idempotency Protection
+
+The system prevents duplicate invoice creation:
+- Safe to re-run billing for same period
+- Invoices are tracked by unique idempotency key
+- System skips already-created invoices automatically
+
+#### Automation Security
+
+For automated/scheduled runs, use the `--non-interactive` flag:
+
+```bash
+python3 -m src.ui.cli run-monthly-billing --non-interactive --json-output summary.json
+```
+
+Benefits:
+- No prompts that could hang automation
+- JSON output for monitoring
+- Safe duplicate prevention
+- Clear reporting of skipped items
+
+See `5_USAGE.md` for detailed automation examples.
+
 ### Support
 
 - **2_README.md** - Quick reference
@@ -1094,6 +1143,7 @@ python3 -m src.ui.cli preview-invoices --year 2025 --month 3
 - **5_USAGE.md** - Detailed usage
 - **6_PRODUCTION.md** - Production-specific details
 - **7_PROJECT_SUMMARY.md** - Technical overview
+- **MIGRATION_GUIDE.md** - Database migration documentation
 
 ---
 

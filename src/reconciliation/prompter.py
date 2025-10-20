@@ -28,13 +28,16 @@ logger = logging.getLogger(__name__)
 class ReconciliationPrompter:
     """Handles interactive prompts for reconciliation."""
 
-    def __init__(self, query_helper):
+    def __init__(self, query_helper, interactive: bool = True):
         """Initialize prompter.
 
         Args:
             query_helper: QueryHelper instance for database access
+            interactive: If False, skip all prompts and return None/default values
         """
         self.query_helper = query_helper
+        self.interactive = interactive
+        self.skipped_items = []  # Track items skipped in non-interactive mode
 
     def prompt_customer_for_domain(self, domain_name: str, customers: List[Customer]) -> Optional[int]:
         """Prompt user to assign a domain to a customer.
@@ -46,6 +49,15 @@ class ReconciliationPrompter:
         Returns:
             Customer ID or None to skip
         """
+        if not self.interactive:
+            logger.warning(f"Skipping domain assignment in non-interactive mode: {domain_name}")
+            self.skipped_items.append({
+                'type': 'domain',
+                'name': domain_name,
+                'reason': 'Non-interactive mode - requires manual assignment'
+            })
+            return None
+
         click.echo(f"\n{'='*60}")
         click.echo(f"New domain found: {click.style(domain_name, fg='yellow', bold=True)}")
         click.echo(f"{'='*60}")
@@ -96,6 +108,15 @@ class ReconciliationPrompter:
         Returns:
             Dictionary with mapping info or None to skip
         """
+        if not self.interactive:
+            logger.warning(f"Skipping CoS mapping in non-interactive mode: {cos_name}")
+            self.skipped_items.append({
+                'type': 'cos',
+                'name': cos_name,
+                'reason': 'Non-interactive mode - requires manual mapping'
+            })
+            return None
+
         click.echo(f"\n{'='*60}")
         click.echo(f"New Class of Service found: {click.style(cos_name, fg='cyan', bold=True)}")
         click.echo(f"{'='*60}")
@@ -174,6 +195,11 @@ class ReconciliationPrompter:
         Returns:
             True if should bill, False otherwise
         """
+        if not self.interactive:
+            # Default to not billing partial months in non-interactive mode
+            logger.info(f"Skipping partial month billing in non-interactive mode: {domain_name}")
+            return False
+
         click.echo(f"\n{'='*60}")
         click.echo(f"Partial month billing decision")
         click.echo(f"{'='*60}")
@@ -253,7 +279,50 @@ class ReconciliationPrompter:
         Returns:
             True if user confirms, False otherwise
         """
+        if not self.interactive:
+            # Auto-continue in non-interactive mode
+            return True
         return click.confirm(message, default=True)
+
+    def get_skipped_items(self) -> List[Dict]:
+        """Get list of items skipped in non-interactive mode.
+
+        Returns:
+            List of dicts with skipped item information
+        """
+        return self.skipped_items
+
+    def display_skipped_summary(self) -> None:
+        """Display summary of items skipped in non-interactive mode."""
+        if not self.skipped_items:
+            return
+
+        click.echo(f"\n{'='*60}")
+        click.echo(click.style("SKIPPED ITEMS (Non-Interactive Mode)", fg='yellow', bold=True))
+        click.echo(f"{'='*60}")
+
+        domains = [item for item in self.skipped_items if item['type'] == 'domain']
+        cos_items = [item for item in self.skipped_items if item['type'] == 'cos']
+
+        if domains:
+            click.echo(f"\n{click.style('Unmapped Domains:', fg='yellow', bold=True)} {len(domains)}")
+            for item in domains[:20]:
+                click.echo(f"  • {item['name']}")
+            if len(domains) > 20:
+                click.echo(f"  ... and {len(domains) - 20} more")
+
+        if cos_items:
+            click.echo(f"\n{click.style('Unmapped CoS:', fg='yellow', bold=True)} {len(cos_items)}")
+            for item in cos_items[:20]:
+                click.echo(f"  • {item['name']}")
+            if len(cos_items) > 20:
+                click.echo(f"  ... and {len(cos_items) - 20} more")
+
+        click.echo(f"\n{click.style('⚠ Action Required:', fg='yellow', bold=True)}")
+        click.echo("  Run manual reconciliation to map these items:")
+        click.echo("    python -m src.ui.cli reconcile-domains")
+        click.echo("    python -m src.ui.cli reconcile-cos")
+        click.echo(f"\n{'='*60}\n")
 
     def prompt_batch_assignment(self, domains: List[str], customer_name: str) -> bool:
         """Prompt for batch assignment of multiple domains to one customer.
