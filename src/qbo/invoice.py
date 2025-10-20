@@ -1,0 +1,382 @@
+# Copyright 2025 Mission Critical Email LLC. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+#
+# DISCLAIMER:
+# This software is provided "AS IS" without warranty of any kind, either express
+# or implied, including but not limited to the implied warranties of
+# merchantability and fitness for a particular purpose. Use at your own risk.
+# In no event shall Mission Critical Email LLC be liable for any damages
+# whatsoever arising out of the use of or inability to use this software.
+
+"""Invoice generation for QuickBooks Online.
+
+Handles the logic of converting usage data into QBO invoices.
+"""
+
+import logging
+from datetime import datetime, date
+from typing import List, Dict, Optional, Tuple
+from collections import defaultdict
+
+from .client import QBOClient
+from ..database.queries import QueryHelper
+from ..database.models import MonthlyHighwater, InvoiceHistory
+
+logger = logging.getLogger(__name__)
+
+
+class InvoiceGenerator:
+    """Generates invoices in QBO from usage data."""
+
+    def __init__(self, qbo_client: QBOClient, query_helper: QueryHelper):
+        """Initialize invoice generator.
+
+        Args:
+            qbo_client: QBO API client
+            query_helper: Database query helper
+        """
+        self.qbo_client = qbo_client
+        self.query_helper = query_helper
+
+    def generate_invoice_for_customer(self, customer_id: int, year: int, month: int,
+                                     draft: bool = True) -> Optional[str]:
+        """Generate invoice for a customer based on monthly usage.
+
+        Args:
+            customer_id: Database customer ID
+            year: Billing year
+            month: Billing month
+            draft: If True, create as draft invoice
+
+        Returns:
+            QBO invoice ID or None if no billable usage
+        """
+        logger.info(f"Generating invoice for customer {customer_id} for {year}-{month:02d}")
+
+        # Get customer
+        customer = self.query_helper.session.query(
+            self.query_helper.session.query.__self__.__class__
+        ).get(customer_id)
+
+        from ..database.models import Customer
+        customer = self.query_helper.session.query(Customer).get(customer_id)
+
+        if not customer:
+            logger.error(f"Customer {customer_id} not found")
+            return None
+
+        # Get domains for customer
+        domains = self.query_helper.get_domains_for_customer(customer_id)
+
+        if not domains:
+            logger.warning(f"No domains found for customer {customer_id}")
+            return None
+
+        # Collect usage data
+        line_items = []
+        total_amount = 0.0
+
+        for domain in domains:
+            # Get highwater marks for this domain
+            highwater_records = self.query_helper.session.query(MonthlyHighwater).filter(
+                MonthlyHighwater.year == year,
+                MonthlyHighwater.month == month,
+                MonthlyHighwater.domain_id == domain.id,
+                MonthlyHighwater.billable == True
+            ).all()
+
+            for hw in highwater_records:
+                cos_mapping = self.query_helper.get_cos_mapping_by_id(hw.cos_id)
+
+                if not cos_mapping:
+                    logger.warning(f"CoS mapping {hw.cos_id} not found")
+                    continue
+
+                # Create line item
+                quantity = hw.highwater_count
+                unit_price = cos_mapping.unit_price
+                amount = quantity * unit_price
+
+                description = f"{domain.domain_name} - {cos_mapping.cos_name}"
+                if cos_mapping.quota_gb:
+                    description += f" ({cos_mapping.quota_gb}GB)"
+
+                line_items.append({
+                    'item_id': cos_mapping.qbo_item_id,
+                    'quantity': quantity,
+                    'unit_price': unit_price,
+                    'description': description,
+                    'amount': amount
+                })
+
+                total_amount += amount
+
+        if not line_items:
+            logger.info(f"No billable usage for customer {customer_id}")
+            return None
+
+        # Generate invoice memo
+        memo = f"Zimbra Email Services - {self._get_month_name(month)} {year}"
+
+        # Set invoice date (first of next month)
+        if month == 12:
+            invoice_date = date(year + 1, 1, 1)
+        else:
+            invoice_date = date(year, month + 1, 1)
+
+        # Create invoice in QBO
+        try:
+            invoice = self.qbo_client.create_invoice(
+                customer_id=customer.qbo_customer_id,
+                line_items=line_items,
+                invoice_date=datetime.combine(invoice_date, datetime.min.time()),
+                memo=memo,
+                draft=draft
+            )
+
+            # Record in invoice history
+            self._record_invoice_history(
+                qbo_invoice_id=invoice.Id,
+                customer_id=customer_id,
+                year=year,
+                month=month,
+                total_amount=total_amount,
+                line_items_count=len(line_items)
+            )
+
+            logger.info(f"Created invoice {invoice.Id} for ${total_amount:.2f}")
+            return invoice.Id
+
+        except Exception as e:
+            logger.error(f"Error creating invoice for customer {customer_id}: {e}")
+            raise
+
+    def generate_all_invoices(self, year: int, month: int, draft: bool = True) -> Dict[str, List]:
+        """Generate invoices for all customers with billable usage.
+
+        Args:
+            year: Billing year
+            month: Billing month
+            draft: If True, create as draft invoices
+
+        Returns:
+            Dictionary with 'success' and 'failed' lists of customer IDs
+        """
+        logger.info(f"Generating invoices for all customers for {year}-{month:02d}")
+
+        # Get all customers with billable usage this month
+        customers_with_usage = self._get_customers_with_usage(year, month)
+
+        results = {
+            'success': [],
+            'failed': []
+        }
+
+        for customer_id in customers_with_usage:
+            try:
+                invoice_id = self.generate_invoice_for_customer(
+                    customer_id, year, month, draft
+                )
+
+                if invoice_id:
+                    results['success'].append({
+                        'customer_id': customer_id,
+                        'invoice_id': invoice_id
+                    })
+                else:
+                    logger.warning(f"No invoice generated for customer {customer_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to generate invoice for customer {customer_id}: {e}")
+                results['failed'].append({
+                    'customer_id': customer_id,
+                    'error': str(e)
+                })
+
+        logger.info(
+            f"Invoice generation complete: "
+            f"{len(results['success'])} successful, "
+            f"{len(results['failed'])} failed"
+        )
+
+        return results
+
+    def preview_invoice_for_customer(self, customer_id: int, year: int, month: int) -> Dict:
+        """Preview invoice data without creating it.
+
+        Args:
+            customer_id: Database customer ID
+            year: Billing year
+            month: Billing month
+
+        Returns:
+            Dictionary with invoice preview data
+        """
+        from ..database.models import Customer
+
+        customer = self.query_helper.session.query(Customer).get(customer_id)
+
+        if not customer:
+            return {'error': 'Customer not found'}
+
+        domains = self.query_helper.get_domains_for_customer(customer_id)
+
+        line_items = []
+        total_amount = 0.0
+
+        for domain in domains:
+            highwater_records = self.query_helper.session.query(MonthlyHighwater).filter(
+                MonthlyHighwater.year == year,
+                MonthlyHighwater.month == month,
+                MonthlyHighwater.domain_id == domain.id,
+                MonthlyHighwater.billable == True
+            ).all()
+
+            for hw in highwater_records:
+                cos_mapping = self.query_helper.get_cos_mapping_by_id(hw.cos_id)
+
+                if not cos_mapping:
+                    continue
+
+                quantity = hw.highwater_count
+                unit_price = cos_mapping.unit_price
+                amount = quantity * unit_price
+
+                line_items.append({
+                    'domain': domain.domain_name,
+                    'cos': cos_mapping.cos_name,
+                    'quota_gb': cos_mapping.quota_gb,
+                    'quantity': quantity,
+                    'unit_price': unit_price,
+                    'amount': amount
+                })
+
+                total_amount += amount
+
+        return {
+            'customer_id': customer_id,
+            'customer_name': customer.customer_name,
+            'qbo_customer_id': customer.qbo_customer_id,
+            'billing_period': f"{year}-{month:02d}",
+            'line_items': line_items,
+            'total_amount': total_amount,
+            'line_count': len(line_items)
+        }
+
+    def get_invoice_summary(self, year: int, month: int) -> Dict:
+        """Get summary of all invoices for a billing period.
+
+        Args:
+            year: Year
+            month: Month
+
+        Returns:
+            Summary dictionary
+        """
+        customers_with_usage = self._get_customers_with_usage(year, month)
+
+        total_customers = len(customers_with_usage)
+        total_amount = 0.0
+        total_line_items = 0
+
+        for customer_id in customers_with_usage:
+            preview = self.preview_invoice_for_customer(customer_id, year, month)
+            if 'total_amount' in preview:
+                total_amount += preview['total_amount']
+                total_line_items += preview['line_count']
+
+        return {
+            'billing_period': f"{year}-{month:02d}",
+            'total_customers': total_customers,
+            'total_amount': total_amount,
+            'total_line_items': total_line_items,
+            'average_per_customer': total_amount / total_customers if total_customers > 0 else 0
+        }
+
+    def _get_customers_with_usage(self, year: int, month: int) -> List[int]:
+        """Get list of customer IDs with billable usage for the month.
+
+        Args:
+            year: Year
+            month: Month
+
+        Returns:
+            List of customer IDs
+        """
+        from ..database.models import Domain
+
+        # Get all billable highwater records
+        highwater_records = self.query_helper.get_highwater_for_month(
+            year, month, billable_only=True
+        )
+
+        # Collect unique customer IDs
+        customer_ids = set()
+        for hw in highwater_records:
+            domain = self.query_helper.session.query(Domain).get(hw.domain_id)
+            if domain:
+                customer_ids.add(domain.customer_id)
+
+        return sorted(list(customer_ids))
+
+    def _record_invoice_history(self, qbo_invoice_id: str, customer_id: int,
+                                year: int, month: int, total_amount: float,
+                                line_items_count: int) -> None:
+        """Record invoice in history table.
+
+        Args:
+            qbo_invoice_id: QBO invoice ID
+            customer_id: Customer ID
+            year: Billing year
+            month: Billing month
+            total_amount: Total invoice amount
+            line_items_count: Number of line items
+        """
+        history = InvoiceHistory(
+            qbo_invoice_id=qbo_invoice_id,
+            customer_id=customer_id,
+            billing_year=year,
+            billing_month=month,
+            invoice_date=datetime.utcnow(),
+            total_amount=total_amount,
+            line_items_count=line_items_count,
+            status='draft'
+        )
+
+        self.query_helper.session.add(history)
+        self.query_helper.session.commit()
+
+        logger.debug(f"Recorded invoice {qbo_invoice_id} in history")
+
+    def _get_month_name(self, month: int) -> str:
+        """Get month name from number.
+
+        Args:
+            month: Month number (1-12)
+
+        Returns:
+            Month name
+        """
+        months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ]
+        return months[month - 1] if 1 <= month <= 12 else str(month)
+
+
+# Helper method addition to QueryHelper
+def get_cos_mapping_by_id(self, cos_id: int):
+    """Get CoS mapping by ID.
+
+    Args:
+        cos_id: CoS mapping ID
+
+    Returns:
+        CoSMapping object or None
+    """
+    from ..database.models import CoSMapping
+    return self.session.query(CoSMapping).get(cos_id)
+
+
+# Add the method to QueryHelper class
+QueryHelper.get_cos_mapping_by_id = get_cos_mapping_by_id

@@ -1,0 +1,36 @@
+{
+  "zimbra": {
+    "host": "mb42.example.com",
+    "port": 22,
+    "username": "zimbra",
+    "key_file": "~/.ssh/id_rsa",
+    "report_path": "/opt/MonthlyUsageReports"
+  },
+  "qbo": {
+    "sandbox": true,
+    "client_id": "YOUR_QBO_CLIENT_ID",
+    "client_secret": "YOUR_QBO_CLIENT_SECRET",
+    "redirect_uri": "http://localhost:8080/callback",
+    "company_id": "YOUR_QBO_COMPANY_ID"
+  },
+  "database": {
+    "path": "data/billing.db"
+  },
+  "exclusions": {
+    "domains": [
+      "missioncriticalemail.com",
+      "*.archive",
+      "*test*",
+      "*-old"
+    ],
+    "cos_patterns": [
+      "mce-internal",
+      "*test*",
+      "*-archive"
+    ]
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}
