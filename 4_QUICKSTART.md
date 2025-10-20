@@ -16,7 +16,7 @@ The application is already installed and configured! You can:
 ### Testing with Existing Data
 
 ```bash
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 
 # Generate report only (no invoices)
 python3 -m src.ui.cli run-monthly-billing --year 2025 --month 3 --skip-invoices --skip-fetch
@@ -29,7 +29,7 @@ python3 -m src.ui.cli run-monthly-billing --year 2025 --month 3 --skip-fetch --s
 
 ### 1. Install (1 min)
 ```bash
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 pip3 install -e .
 ```
 
@@ -149,8 +149,10 @@ tail -f data/logs/*.log
 # Run billing for previous month
 python -m src.ui.cli run-monthly-billing
 
-# Review Excel report
-open data/billing_report_2025_10.xlsx
+# Review Excel report (use command for your OS)
+open data/billing_report_2025_10.xlsx        # macOS
+xdg-open data/billing_report_2025_10.xlsx    # Linux
+start data/billing_report_2025_10.xlsx       # Windows
 
 # Review draft invoices in QBO web interface
 # https://app.qbo.intuit.com/app/invoices
@@ -160,12 +162,20 @@ open data/billing_report_2025_10.xlsx
 
 ## Automation Setup
 
-Add to crontab for automatic monthly runs:
+**macOS/Linux** - Add to crontab for automatic monthly runs:
 
 ```bash
 # Run at 6am on the 1st of each month
-0 6 1 * * cd /Users/mstone/claude-dir/invoicing && /usr/bin/python3 -m src.ui.cli run-monthly-billing --skip-reconciliation >> data/logs/cron.log 2>&1
+0 6 1 * * cd ~/zimbra-qbo-billing && /usr/bin/python3 -m src.ui.cli run-monthly-billing --skip-reconciliation >> data/logs/cron.log 2>&1
 ```
+
+**Windows** - Use Task Scheduler:
+1. Open Task Scheduler → Create Basic Task
+2. Trigger: Monthly, Day 1, 6:00 AM
+3. Action: Start a program
+   - Program: `python`
+   - Arguments: `-m src.ui.cli run-monthly-billing --skip-reconciliation`
+   - Start in: `C:\path\to\zimbra-qbo-billing`
 
 Note: Use `--skip-reconciliation` for unattended runs. New domains/CoS will be skipped until manually reconciled.
 

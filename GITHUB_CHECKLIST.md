@@ -31,7 +31,7 @@ git config --global user.email "your.email@example.com"
 Run these commands in Terminal:
 
 ```bash
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 ```
 
 **Initialize and commit**:

@@ -6,19 +6,20 @@ This guide focuses specifically on switching from QuickBooks Sandbox to your Pro
 
 ## Overview
 
-Currently, the application is configured to use QuickBooks **Sandbox** for testing. The database has been cleaned of all sandbox test data, so you're starting fresh for production.
+Currently, the application is configured to use QuickBooks **Sandbox** for testing. Before switching to production, you must clean all sandbox data from the database to avoid any contamination between test and real data.
 
 This guide will help you:
 1. Backup your current configuration
-2. Switch to production QuickBooks
-3. Re-authorize with your production company
-4. Import your real customers
-5. Map all domains and CoS to production data
-6. Test and verify everything works
+2. Clean all sandbox data from the database
+3. Switch to production QuickBooks
+4. Re-authorize with your production company
+5. Import your real customers
+6. Map all domains and CoS to production data
+7. Test and verify everything works
 
 **Time Required**: 30-60 minutes (depending on number of domains to map)
 
-**Database Status**: ✅ All sandbox test data has been cleared. You're starting with a clean slate for production.
+**Important**: Always clean the database when switching between sandbox and production to ensure complete separation of test and real data.
 
 ## Prerequisites
 
@@ -26,7 +27,7 @@ This guide will help you:
 ✅ You have a QuickBooks Online production account
 ✅ You have access to the QuickBooks Developer portal (for OAuth credentials)
 ✅ All your production customers exist in QuickBooks Online
-✅ All your service items (for CoS mapping) exist in QuickBooks Online
+✅ All your service items (for CoS mapping) exist in QuickBooks Online as List Items
 
 ## Step-by-Step Instructions
 
@@ -35,13 +36,40 @@ This guide will help you:
 Before making any changes, backup your current configuration:
 
 ```bash
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 cp .env .env.sandbox-backup
 ```
 
-**Note**: The database has already been cleaned of sandbox data, so no database backup is needed. You're starting fresh for production.
+### 2. Clean All Sandbox Data
 
-### 2. Find Your Production Company ID
+Remove all sandbox test data from the database to start fresh with production:
+
+```bash
+sqlite3 data/billing.db "
+DELETE FROM invoice_history;
+DELETE FROM customer_settings;
+DELETE FROM domain_history;
+DELETE FROM monthly_highwater;
+DELETE FROM usage_data;
+DELETE FROM cos_discovery;
+DELETE FROM domains;
+DELETE FROM cos_mappings;
+DELETE FROM customers;
+DELETE FROM exclusions;
+DELETE FROM change_log;
+"
+```
+
+**What this does:**
+- Removes all sandbox customers and their mappings
+- Clears all test invoice history
+- Removes all domain and CoS mappings
+- Clears all usage data from sandbox testing
+- Ensures a completely clean slate for production
+
+**Important**: This step is critical to prevent mixing sandbox and production data.
+
+### 3. Find Your Production Company ID
 
 You need your production QuickBooks Company ID (also called Realm ID).
 
@@ -55,7 +83,7 @@ You need your production QuickBooks Company ID (also called Realm ID).
 1. The `authorize-qbo` command will display it after successful auth
 2. You can use this method in step 4 below
 
-### 3. Update Configuration
+### 4. Update Configuration
 
 Edit your `.env` file:
 
@@ -81,7 +109,7 @@ Save and exit (Ctrl+O, Enter, Ctrl+X in nano).
 
 **Important**: If you don't know your production Company ID yet, you can set `QBO_SANDBOX=false` now and set the Company ID after step 4.
 
-### 4. Clear Sandbox Authorization
+### 5. Clear Sandbox Authorization
 
 Remove the sandbox OAuth tokens:
 
@@ -91,7 +119,7 @@ rm data/qbo_tokens.enc
 
 This forces a new authorization with production.
 
-### 5. Re-Authorize with Production QuickBooks
+### 6. Re-Authorize with Production QuickBooks
 
 Run the authorization command:
 
@@ -111,7 +139,7 @@ python3 -m src.ui.cli authorize-qbo
 - If you didn't set it in step 3, update `.env` now with this Company ID
 - Tokens are saved to `data/qbo_tokens.enc`
 
-### 6. Test the Connection
+### 7. Test the Connection
 
 Verify the production connection works:
 
@@ -131,7 +159,7 @@ Testing QuickBooks Online connection...
 
 If this fails, go back to step 5 and re-authorize.
 
-### 7. Import Production Customers
+### 8. Import Production Customers
 
 Sync your real customers from production QuickBooks:
 
@@ -152,7 +180,7 @@ Syncing QuickBooks customers...
 
 The number will vary based on how many customers you have.
 
-### 8. View Production Customers
+### 9. View Production Customers
 
 Optionally, view the imported customers to verify:
 
@@ -160,9 +188,9 @@ Optionally, view the imported customers to verify:
 sqlite3 data/billing.db "SELECT id, customer_name, qbo_customer_id FROM customers ORDER BY customer_name LIMIT 20;"
 ```
 
-### 9. Map Domains to Production Customers
+### 10. Map Domains to Production Customers
 
-Now you need to assign all your domains to the correct production customers. Since the database was cleaned, all domains from the Zimbra reports will need to be mapped:
+Now you need to assign all your domains to the correct production customers. Since the database was cleaned in step 2, all domains from the Zimbra reports will need to be mapped:
 
 ```bash
 python3 -m src.ui.cli reconcile-domains
@@ -194,7 +222,7 @@ Select customer number [0 to skip]: 3
 - Enter 0 to skip domains you don't recognize or want to exclude
 - This process can take 15-30 minutes for ~85 domains
 
-### 10. Verify Domain Mappings
+### 11. Verify Domain Mappings
 
 Check how many domains are mapped:
 
@@ -202,36 +230,9 @@ Check how many domains are mapped:
 sqlite3 data/billing.db "SELECT COUNT(*) FROM domains WHERE customer_id IS NOT NULL;"
 ```
 
-### 11. Verify CoS Mappings Still Valid
+### 12. Map CoS to Production Items
 
-Check your existing CoS mappings:
-
-```bash
-sqlite3 data/billing.db "SELECT cos_name, qbo_item_name, unit_price FROM cos_mappings WHERE active = 1;"
-```
-
-**Important**: Your CoS mappings reference QuickBooks **Item IDs**. These IDs are different between sandbox and production.
-
-You have two options:
-
-**Option A: Remap all CoS to production items**
-```bash
-# Clear sandbox CoS mappings
-sqlite3 data/billing.db "UPDATE cos_mappings SET active = 0;"
-
-# Remap to production items
-python3 -m src.ui.cli reconcile-cos
-```
-
-**Option B: Update existing mappings** (if items have same names)
-- Manually update the `qbo_item_id` field in each CoS mapping
-- Only works if your production items have the exact same names as sandbox
-
-**Recommended**: Option A (remap) is safer and ensures correct mapping.
-
-### 12. Remap CoS to Production Items
-
-If you chose Option A above:
+Now you need to map all Class of Service types to your production QuickBooks items. Since the database was cleaned in step 2, all CoS types will need to be mapped:
 
 ```bash
 python3 -m src.ui.cli reconcile-cos
@@ -292,7 +293,14 @@ Total Amount: $3,210.00
 Open the Excel report and verify:
 
 ```bash
+# macOS
 open data/billing_report_2025_03.xlsx
+
+# Linux
+xdg-open data/billing_report_2025_03.xlsx
+
+# Windows
+start data/billing_report_2025_03.xlsx
 ```
 
 **Check:**
@@ -414,31 +422,68 @@ After switching to production, verify:
 
 **Fix**:
 ```bash
-# Start fresh with production
-mv data/billing.db data/billing.db.old
-python3 -m src.ui.cli init-db
-python3 -m src.ui.cli authorize-qbo
+# Clean all sandbox data (see Step 2 above)
+sqlite3 data/billing.db "
+DELETE FROM invoice_history;
+DELETE FROM customer_settings;
+DELETE FROM domain_history;
+DELETE FROM monthly_highwater;
+DELETE FROM usage_data;
+DELETE FROM cos_discovery;
+DELETE FROM domains;
+DELETE FROM cos_mappings;
+DELETE FROM customers;
+DELETE FROM exclusions;
+DELETE FROM change_log;
+"
+
+# Re-sync production customers
 python3 -m src.ui.cli sync-customers
-# Re-run reconciliation and billing
+
+# Re-run reconciliation
+python3 -m src.ui.cli reconcile-domains
+python3 -m src.ui.cli reconcile-cos
 ```
 
 ## Reverting to Sandbox
 
-If you need to go back to sandbox for any reason:
+If you need to go back to sandbox for testing or troubleshooting:
 
 ```bash
-# Restore sandbox database
-cp data/billing.db data/billing.db.production-backup
-cp data/billing.db.sandbox-backup data/billing.db
+# 1. Clean production data
+sqlite3 data/billing.db "
+DELETE FROM invoice_history;
+DELETE FROM customer_settings;
+DELETE FROM domain_history;
+DELETE FROM monthly_highwater;
+DELETE FROM usage_data;
+DELETE FROM cos_discovery;
+DELETE FROM domains;
+DELETE FROM cos_mappings;
+DELETE FROM customers;
+DELETE FROM exclusions;
+DELETE FROM change_log;
+"
 
-# Restore sandbox config
+# 2. Restore sandbox config
 cp .env.sandbox-backup .env
 
-# Re-authorize sandbox
+# Or manually update .env:
+# QBO_SANDBOX=true
+# QBO_COMPANY_ID=9341455543932441
+
+# 3. Clear production tokens
 rm data/qbo_tokens.enc
+
+# 4. Re-authorize with sandbox
 python3 -m src.ui.cli authorize-qbo
 # Select SANDBOX company during auth
+
+# 5. Sync sandbox customers
+python3 -m src.ui.cli sync-customers
 ```
+
+**Important**: Always clean the database when switching back to avoid mixing production and sandbox data.
 
 ## Important Production Notes
 
@@ -463,11 +508,13 @@ Once set up, your monthly workflow will be:
 
 ```bash
 # First day of month - run billing for previous month
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 python3 -m src.ui.cli run-monthly-billing --skip-reconciliation
 
-# Review Excel report
-open data/billing_report_YYYY_MM.xlsx
+# Review Excel report (use command for your OS)
+open data/billing_report_YYYY_MM.xlsx        # macOS
+xdg-open data/billing_report_YYYY_MM.xlsx    # Linux
+start data/billing_report_YYYY_MM.xlsx       # Windows
 
 # Review drafts in QuickBooks Online
 # https://qbo.intuit.com → Sales → Invoices → Draft

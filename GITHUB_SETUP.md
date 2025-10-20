@@ -33,7 +33,7 @@ Use the email associated with your GitHub account.
 ## Step 3: Initialize Local Repository
 
 ```bash
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 
 # Initialize git repository
 git init

@@ -2,6 +2,24 @@
 
 This guide walks you through the entire process from initial installation, through sandbox testing, to production deployment.
 
+## Platform Compatibility
+
+This application works on:
+- ✅ **macOS** (10.15+) - Developed and tested on macOS Tahoe
+- ✅ **Linux** (Ubuntu 20.04+, Debian, RHEL, etc.) - All dependencies supported
+- ✅ **Windows** (10/11 with Python 3.8+) - Fully compatible
+
+**Requirements:**
+- Python 3.8 or higher
+- pip3 (Python package installer)
+- SSH client (OpenSSH on Mac/Linux, built-in on Windows 10+)
+- SSH keys configured for Zimbra server access
+
+**Platform-Specific Notes:**
+- **macOS/Linux**: Examples use `open` or `xdg-open` to view Excel files
+- **Windows**: Use `start` instead of `open` to view Excel files, or double-click files in File Explorer
+- **SSH Keys**: All platforms store SSH keys in `~/.ssh/` (Windows: `C:\Users\YourName\.ssh\`)
+
 ## Overview
 
 The recommended approach is:
@@ -21,7 +39,7 @@ The recommended approach is:
 ### Step 1.1: Install the Application
 
 ```bash
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 pip3 install -e .
 ```
 
@@ -264,7 +282,14 @@ Total Line Items: 69
 ### Step 4.2: Review the Excel Report
 
 ```bash
+# macOS
 open data/billing_report_2025_03_*.xlsx
+
+# Linux
+xdg-open data/billing_report_2025_03_*.xlsx
+
+# Windows
+start data/billing_report_2025_03_*.xlsx
 ```
 
 **Review**:
@@ -361,7 +386,7 @@ Once you've verified everything works in sandbox, clean the test data:
 ### Step 6.1: Backup Sandbox Configuration
 
 ```bash
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 cp .env .env.sandbox-backup
 cp data/billing.db data/billing.db.sandbox-backup
 ```
@@ -669,7 +694,14 @@ Total Amount: $3,210.00
 ### Step 9.2: Review Production Excel Report
 
 ```bash
+# macOS
 open data/billing_report_2025_03_*.xlsx
+
+# Linux
+xdg-open data/billing_report_2025_03_*.xlsx
+
+# Windows
+start data/billing_report_2025_03_*.xlsx
 ```
 
 **CAREFULLY REVIEW**:
@@ -760,13 +792,15 @@ Once invoices are verified:
 **On the 1st of each month** (or your billing day):
 
 ```bash
-cd /Users/mstone/claude-dir/invoicing
+cd ~/zimbra-qbo-billing
 
 # Run billing for previous month
 python3 -m src.ui.cli run-monthly-billing --skip-reconciliation
 
-# Review Excel report
-open data/billing_report_YYYY_MM_*.xlsx
+# Review Excel report (use command for your OS)
+open data/billing_report_YYYY_MM_*.xlsx        # macOS
+xdg-open data/billing_report_YYYY_MM_*.xlsx    # Linux
+start data/billing_report_YYYY_MM_*.xlsx       # Windows
 
 # Review draft invoices in QuickBooks
 # Send when ready
@@ -799,7 +833,7 @@ cp data/billing.db data/billing.db.$(date +%Y%m%d)
 
 ### Automation (Optional)
 
-Set up cron job for automatic monthly runs:
+**macOS/Linux** - Set up cron job for automatic monthly runs:
 
 ```bash
 crontab -e
@@ -808,8 +842,21 @@ crontab -e
 Add:
 ```bash
 # Run billing at 6am on 1st of each month
-0 6 1 * * cd /Users/mstone/claude-dir/invoicing && /usr/bin/python3 -m src.ui.cli run-monthly-billing --skip-reconciliation >> data/logs/cron.log 2>&1
+0 6 1 * * cd ~/zimbra-qbo-billing && /usr/bin/python3 -m src.ui.cli run-monthly-billing --skip-reconciliation >> data/logs/cron.log 2>&1
 ```
+
+**Windows** - Use Task Scheduler:
+1. Open Task Scheduler → Create Basic Task
+2. Name: "Zimbra Monthly Billing"
+3. Trigger: Monthly, Day 1, 6:00 AM
+4. Action: Start a program
+   - Program: `python`
+   - Arguments: `-m src.ui.cli run-monthly-billing --skip-reconciliation`
+   - Start in: `C:\path\to\zimbra-qbo-billing`
+5. Additional settings:
+   - Run whether user is logged on or not
+   - Run with highest privileges
+   - Configure output logging in the script arguments if desired
 
 ---
 
@@ -860,16 +907,36 @@ Add:
 
 **Fix**:
 ```bash
-# Restore sandbox config
+# 1. Clean production data
+sqlite3 data/billing.db "
+DELETE FROM invoice_history;
+DELETE FROM customer_settings;
+DELETE FROM domain_history;
+DELETE FROM monthly_highwater;
+DELETE FROM usage_data;
+DELETE FROM cos_discovery;
+DELETE FROM domains;
+DELETE FROM cos_mappings;
+DELETE FROM customers;
+DELETE FROM exclusions;
+DELETE FROM change_log;
+"
+
+# 2. Restore sandbox config
 cp .env.sandbox-backup .env
 
-# Clear production tokens
+# 3. Clear production tokens
 rm data/qbo_tokens.enc
 
-# Re-authorize sandbox
+# 4. Re-authorize sandbox
 python3 -m src.ui.cli authorize-qbo
 # Select SANDBOX company
+
+# 5. Sync sandbox customers
+python3 -m src.ui.cli sync-customers
 ```
+
+**Important**: Always clean the database when switching to avoid mixing sandbox and production data.
 
 ### Clear Everything and Start Over
 

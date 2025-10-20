@@ -1,10 +1,12 @@
-# Zimbra Server Setup
+# Zimbra Server Setup (Linux Only)
 
 This document describes how to set up the Zimbra mailbox server to generate weekly usage reports for billing.
 
+> **Note**: This setup is performed on your **Zimbra mailbox server**, which runs on Linux. The billing application itself (that processes these reports) can run on macOS, Linux, or Windows.
+
 ## Overview
 
-The billing system requires weekly usage reports from your Zimbra server. These reports are generated automatically by a script running on the Zimbra mailbox server.
+The billing system requires weekly usage reports from your Zimbra server. These reports are generated automatically by a script running on a single Zimbra mailbox server.
 
 **What gets generated:**
 - Weekly reports showing mailbox counts by domain and Class of Service (CoS)
@@ -13,7 +15,8 @@ The billing system requires weekly usage reports from your Zimbra server. These 
 
 ## Prerequisites
 
-- ✅ Zimbra mailbox server with root or sudo access
+- ✅ **Linux-based** Zimbra mailbox server (RHEL, Ubuntu, etc.)
+- ✅ Root or sudo access on the Zimbra server
 - ✅ `MonthlyBillingByDomain-v6.sh` script (included in this repository)
 - ✅ Cron access for the `zimbra` user
 
@@ -263,31 +266,21 @@ zmcontrol status
 
 ## Report Cleanup
 
-Old reports accumulate over time. Set up automatic cleanup:
+Old reports accumulate over time. Although they are each usually less than 50K, you can set up automatic cleanup if you are tight on space:
 
 ```bash
 # As zimbra user, edit crontab
 crontab -e
 
 # Add monthly cleanup (keeps last 90 days)
-0 4 1 * * find /opt/MonthlyUsageReports/ -name "MailboxUsage_*.txt" -mtime +90 -delete
+0 4 1 * * find /opt/MonthlyUsageReports/ -name "MailboxUsage_*.txt" -mtime +360 -delete
 ```
 
-This removes reports older than 90 days on the 1st of each month at 4:00 AM.
+This removes reports older than 360 days on the 1st of each month at 4:00 AM.
 
 ## Multiple Zimbra Servers
 
-If you have multiple Zimbra mailbox servers:
-
-**Option 1: Run script on each server**
-- Set up the script on each mailbox server
-- Use different output directories (e.g., `/opt/MonthlyUsageReports-server1/`)
-- Configure billing system to fetch from all servers
-
-**Option 2: Consolidate on one server**
-- Run script on one server
-- Have that server query other servers remotely
-- May require additional LDAP or SOAP API configuration
+If you have multiple Zimbra mailbox servers, be sure to run the script on just one mailbox server; usually the least busy one.
 
 ## Security Notes
 
