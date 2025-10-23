@@ -14,7 +14,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='zimbra-qbo-billing',
-    version='1.0.0',
+    version='1.10.0',
     description='Automated billing system for Zimbra usage to QuickBooks Online',
     author='Mission Critical Email LLC',
     author_email='support@missioncriticalemail.com',

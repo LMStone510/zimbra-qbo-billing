@@ -509,7 +509,7 @@ def generate_json_summary(invoice_results: dict, report_path: str, year: int, mo
                 'year': year,
                 'month': month
             },
-            'version': '0.10.0'
+            'version': '1.10.0'
         },
         'invoices': {
             'total_count': len(invoices),

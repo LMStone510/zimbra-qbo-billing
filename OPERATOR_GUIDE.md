@@ -1,6 +1,6 @@
 # Zimbra-QBO Billing Operator Quick Reference
 
-**Version**: v1.0.0
+**Version**: v1.10.0
 **Audience**: Billing staff and operations team
 **Purpose**: Simple, step-by-step guide for monthly billing operations
 
@@ -473,6 +473,6 @@ python3 -m src.ui.cli --help
 
 ---
 
-**Version**: v1.0.0
+**Version**: v1.10.0
 **Last Updated**: January 2025
 **System Status**: ✅ Production Ready
