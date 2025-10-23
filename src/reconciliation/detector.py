@@ -123,7 +123,9 @@ class ChangeDetector:
             List of unmapped CoS names
         """
         # Get all mapped CoS names
-        mapped_cos = self.session.query(CoSMapping.cos_name).all()
+        mapped_cos = self.session.query(CoSMapping.cos_name).filter(
+            CoSMapping.active.is_(True)
+        ).all()
         mapped_cos_set = {c[0] for c in mapped_cos}
 
         # Find new CoS
@@ -131,6 +133,61 @@ class ChangeDetector:
 
         logger.info(f"Found {len(new_cos)} unmapped CoS types")
         return sorted(list(new_cos))
+
+    def find_obsolete_cos_mappings(self, current_cos_names: Set[str]) -> List[Dict]:
+        """Find CoS mappings that no longer appear in Zimbra data.
+
+        Args:
+            current_cos_names: Set of CoS names from current reports
+
+        Returns:
+            List of dicts with obsolete mapping info
+        """
+        # Get all active mapped CoS names
+        active_mappings = self.session.query(CoSMapping).filter(
+            CoSMapping.active.is_(True)
+        ).all()
+
+        obsolete = []
+        for mapping in active_mappings:
+            if mapping.cos_name not in current_cos_names:
+                obsolete.append({
+                    'cos_name': mapping.cos_name,
+                    'qbo_item_name': mapping.qbo_item_name,
+                    'mapping_id': mapping.id
+                })
+
+        logger.info(f"Found {len(obsolete)} potentially obsolete CoS mappings")
+        return obsolete
+
+    def find_invalid_qbo_item_mappings(self, qbo_client) -> List[Dict]:
+        """Find CoS mappings pointing to deleted/invalid QBO items.
+
+        Args:
+            qbo_client: QBO client instance
+
+        Returns:
+            List of dicts with invalid mapping info
+        """
+        active_mappings = self.session.query(CoSMapping).filter(
+            CoSMapping.active.is_(True)
+        ).all()
+
+        invalid = []
+        for mapping in active_mappings:
+            # Try to fetch the QBO item
+            qbo_item = qbo_client.get_item_by_id(mapping.qbo_item_id)
+            if not qbo_item or not getattr(qbo_item, 'Active', True):
+                invalid.append({
+                    'cos_name': mapping.cos_name,
+                    'qbo_item_id': mapping.qbo_item_id,
+                    'qbo_item_name': mapping.qbo_item_name,
+                    'mapping_id': mapping.id,
+                    'reason': 'QBO item not found or inactive'
+                })
+
+        logger.info(f"Found {len(invalid)} CoS mappings with invalid QBO items")
+        return invalid
 
     def find_new_qbo_customers(self, qbo_customer_ids: Set[str]) -> List[str]:
         """Find QBO customers that aren't in our database.
@@ -171,13 +228,15 @@ class ChangeDetector:
 
         return unassigned
 
-    def detect_all_changes(self, current_data: Dict, year: int, month: int) -> Dict:
+    def detect_all_changes(self, current_data: Dict, year: int, month: int,
+                          qbo_client=None) -> Dict:
         """Run all change detection and return comprehensive results.
 
         Args:
             current_data: Dictionary with 'domains' and 'cos_names' sets
             year: Current year
             month: Current month
+            qbo_client: Optional QBO client for validating item mappings
 
         Returns:
             Dictionary with all detected changes:
@@ -186,6 +245,8 @@ class ChangeDetector:
                 'missing_domains': [...],
                 'reappearing_domains': [...],
                 'new_cos': [...],
+                'obsolete_cos': [...],
+                'invalid_qbo_items': [...],
                 'needs_attention': bool
             }
         """
@@ -197,11 +258,20 @@ class ChangeDetector:
             'missing_domains': self.find_missing_domains(current_domains, year, month),
             'reappearing_domains': self.find_reappearing_domains(current_domains),
             'new_cos': self.find_new_cos(current_cos),
+            'obsolete_cos': self.find_obsolete_cos_mappings(current_cos),
+            'invalid_qbo_items': []
         }
+
+        # Optionally check for invalid QBO items (requires API calls)
+        if qbo_client:
+            changes['invalid_qbo_items'] = self.find_invalid_qbo_item_mappings(qbo_client)
 
         # Determine if manual attention is needed
         changes['needs_attention'] = (
             len(changes['new_domains']) > 0 or
+            len(changes['new_cos']) > 0 or
+            len(changes['obsolete_cos']) > 0 or
+            len(changes['invalid_qbo_items']) > 0 or
             len(changes['new_cos']) > 0 or
             len(changes['reappearing_domains']) > 0
         )

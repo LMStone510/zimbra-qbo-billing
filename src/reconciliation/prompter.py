@@ -134,7 +134,7 @@ class ReconciliationPrompter:
 
         for i, item in enumerate(qbo_items, 1):
             price_str = f"${item.get('price', 0):.2f}" if item.get('price') else "No price"
-            click.echo(f"  {i}: {item['name']} ({price_str})")
+            click.echo(f"  {i}: {item['name']} (Current QBO price: {price_str})")
 
         while True:
             try:
@@ -146,14 +146,6 @@ class ReconciliationPrompter:
                 elif 1 <= choice <= len(qbo_items):
                     selected_item = qbo_items[choice - 1]
 
-                    # Prompt for custom price if needed
-                    current_price = selected_item.get('price', 0.0)
-                    price = click.prompt(
-                        f"Price per unit",
-                        type=float,
-                        default=current_price
-                    )
-
                     # Prompt for quota if not detected
                     if quota_gb is None:
                         quota_gb = click.prompt(
@@ -164,17 +156,24 @@ class ReconciliationPrompter:
                         if quota_gb == 0:
                             quota_gb = None
 
+                    current_price = selected_item.get('price', 0.0)
                     click.echo(
                         click.style(
-                            f"✓ Mapped {cos_name} to {selected_item['name']} at ${price:.2f}",
+                            f"✓ Mapped {cos_name} to {selected_item['name']} "
+                            f"(will use current QBO price: ${current_price:.2f})",
                             fg='green'
+                        )
+                    )
+                    click.echo(
+                        click.style(
+                            "  Note: Price changes in QuickBooks will automatically apply to future invoices",
+                            fg='cyan'
                         )
                     )
 
                     return {
                         'qbo_item_id': selected_item['id'],
                         'qbo_item_name': selected_item['name'],
-                        'unit_price': price,
                         'quota_gb': quota_gb
                     }
                 else:
@@ -267,6 +266,22 @@ class ReconciliationPrompter:
             click.echo(f"\n{click.style('New CoS types:', fg='cyan', bold=True)} {len(changes['new_cos'])}")
             for cos in changes['new_cos']:
                 click.echo(f"  • {cos}")
+
+        # Obsolete CoS
+        if changes.get('obsolete_cos'):
+            click.echo(f"\n{click.style('Obsolete CoS mappings:', fg='yellow', bold=True)} {len(changes['obsolete_cos'])}")
+            click.echo("  (These CoS no longer appear in Zimbra data)")
+            for cos_info in changes['obsolete_cos'][:10]:
+                click.echo(f"  • {cos_info['cos_name']} → {cos_info['qbo_item_name']}")
+            if len(changes['obsolete_cos']) > 10:
+                click.echo(f"  ... and {len(changes['obsolete_cos']) - 10} more")
+
+        # Invalid QBO items
+        if changes.get('invalid_qbo_items'):
+            click.echo(f"\n{click.style('Invalid QBO item mappings:', fg='red', bold=True)} {len(changes['invalid_qbo_items'])}")
+            click.echo("  (These mappings point to deleted/inactive QBO items)")
+            for item_info in changes['invalid_qbo_items']:
+                click.echo(f"  • {item_info['cos_name']} → {item_info['qbo_item_name']} ({item_info['reason']})")
 
         click.echo(f"\n{'='*60}\n")
 

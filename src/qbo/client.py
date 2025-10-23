@@ -243,7 +243,8 @@ class QBOClient:
         Args:
             customer_id: QBO customer ID
             line_items: List of line item dicts:
-                       [{'item_id': ..., 'quantity': ..., 'unit_price': ..., 'description': ...}, ...]
+                       [{'item_id': ..., 'quantity': ..., 'description': ...}, ...]
+                       Note: Prices are automatically pulled from QBO item definitions
             invoice_date: Invoice date (uses today if None)
             due_date: Due date (optional)
             memo: Invoice memo/notes
@@ -281,15 +282,15 @@ class QBOClient:
             for i, item_data in enumerate(line_items, 1):
                 line = SalesItemLine()
                 line.LineNum = i
-                line.Amount = item_data['quantity'] * item_data['unit_price']
                 line.Description = item_data.get('description', '')
 
                 # Set item detail
+                # NOTE: We only set ItemRef and Qty - QBO automatically uses
+                # the price defined for the item in QuickBooks
                 detail = SalesItemLineDetail()
                 detail.ItemRef = Ref()
                 detail.ItemRef.value = item_data['item_id']
                 detail.Qty = item_data['quantity']
-                detail.UnitPrice = item_data['unit_price']
 
                 line.SalesItemLineDetail = detail
                 invoice.Line.append(line)

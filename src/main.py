@@ -253,8 +253,11 @@ def run_reconciliation(highwater_data: dict, query_helper: QueryHelper,
     # Extract current domains and CoS
     current_data = extract_current_data(highwater_data)
 
-    # Detect changes
-    changes = detector.detect_all_changes(current_data, year, month)
+    # Get QBO client for mapping validation
+    qbo_client = get_qbo_client()
+
+    # Detect changes (including validating QBO item mappings)
+    changes = detector.detect_all_changes(current_data, year, month, qbo_client=qbo_client)
 
     # Display summary
     prompter.display_reconciliation_summary(changes)
@@ -282,12 +285,59 @@ def run_reconciliation(highwater_data: dict, query_helper: QueryHelper,
             if customer_id:
                 mapper.map_domain_to_customer(domain_name, customer_id)
 
+    # Handle obsolete CoS mappings
+    if changes.get('obsolete_cos'):
+        click.echo(f"\n--- Handling {len(changes['obsolete_cos'])} obsolete CoS mappings ---")
+        for cos_info in changes['obsolete_cos']:
+            if prompter.interactive:
+                if click.confirm(f"Mark '{cos_info['cos_name']}' as inactive (no longer in Zimbra)?", default=True):
+                    # Mark as inactive
+                    cos_mapping = query_helper.session.get(CoSMapping, cos_info['mapping_id'])
+                    if cos_mapping:
+                        cos_mapping.active = False
+                        query_helper.log_change(
+                            'cos_mapping_deactivated',
+                            f"Deactivated obsolete CoS mapping: {cos_info['cos_name']}",
+                            'cos',
+                            cos_info['mapping_id']
+                        )
+                        click.echo(click.style(f"  ✓ Deactivated {cos_info['cos_name']}", fg='yellow'))
+
+    # Handle invalid QBO item mappings
+    if changes.get('invalid_qbo_items'):
+        click.echo(f"\n--- Handling {len(changes['invalid_qbo_items'])} invalid QBO item mappings ---")
+        for item_info in changes['invalid_qbo_items']:
+            click.echo(f"\n{item_info['cos_name']} → {item_info['qbo_item_name']}")
+            click.echo(f"  Issue: {item_info['reason']}")
+            if prompter.interactive:
+                if click.confirm("  Remap this CoS to a different QBO item?", default=True):
+                    # Get updated QBO items list
+                    qbo_items = qbo_client.get_all_items(item_type='Service')
+                    items_list = [
+                        {'id': item.Id, 'name': item.Name, 'price': getattr(item, 'UnitPrice', 0)}
+                        for item in qbo_items if getattr(item, 'Active', True)
+                    ]
+                    mapping_data = prompter.prompt_cos_mapping(item_info['cos_name'], items_list)
+                    if mapping_data:
+                        # Update existing mapping
+                        cos_mapping = query_helper.session.get(CoSMapping, item_info['mapping_id'])
+                        if cos_mapping:
+                            cos_mapping.qbo_item_id = mapping_data['qbo_item_id']
+                            cos_mapping.qbo_item_name = mapping_data['qbo_item_name']
+                            if 'quota_gb' in mapping_data:
+                                cos_mapping.quota_gb = mapping_data['quota_gb']
+                            query_helper.log_change(
+                                'cos_mapping_updated',
+                                f"Updated CoS mapping: {item_info['cos_name']} → {mapping_data['qbo_item_name']}",
+                                'cos',
+                                item_info['mapping_id']
+                            )
+
     # Reconcile new CoS
     if changes['new_cos']:
         click.echo(f"\n--- Reconciling {len(changes['new_cos'])} new CoS ---")
 
         # Get QBO items
-        qbo_client = get_qbo_client()
         qbo_items = qbo_client.get_all_items(item_type='Service')
         items_list = [
             {'id': item.Id, 'name': item.Name, 'price': getattr(item, 'UnitPrice', 0)}

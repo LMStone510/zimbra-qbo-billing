@@ -217,6 +217,41 @@ python3 -m src.ui.cli reconcile-cos
 # Follow prompts to map each CoS to a QuickBooks item
 ```
 
+**Note:** The monthly billing process **automatically detects**:
+- New CoS types that need mapping
+- Obsolete CoS mappings (CoS no longer in Zimbra)
+- Invalid mappings (QBO items that were deleted)
+
+You'll be prompted to handle these during the billing run.
+
+---
+
+### Reviewing All CoS Mappings
+
+**When to use:** You want to review, change, or remove existing CoS-to-Item mappings
+
+**Command:**
+```bash
+python3 -m src.ui.cli reconcile-cos --review-all
+```
+
+**What it does:**
+- Shows all current CoS-to-Item mappings
+- Displays the current price from QuickBooks for each item
+- Lets you change, deactivate, or keep each mapping
+- Warns if a mapping points to a deleted/inactive QBO item
+
+**Example output:**
+```
+Current mapping: customer-25gb
+  → QBO Item: 25GB Mailbox
+  → Quota: 25 GB
+  → Current QBO Price: $5.99
+
+Change this mapping? [y/N]
+Mark this CoS as inactive (no longer used)? [y/N]
+```
+
 ---
 
 ### Wrong Prices
@@ -224,12 +259,13 @@ python3 -m src.ui.cli reconcile-cos
 **Issue:** Prices in invoices don't match your rates
 
 **Fix:**
-1. Update prices in **QuickBooks** (Sales → Products and Services)
-2. Re-map CoS to pick up new prices:
-   ```bash
-   python3 -m src.ui.cli reconcile-cos
-   ```
-3. Re-run billing for that month (safe - won't duplicate)
+1. Update prices in **QuickBooks Online** (Sales → Products and Services)
+2. That's it! The next billing run will automatically use the updated prices
+
+**How it works:**
+- Prices are **NOT** stored in the billing database
+- Invoices always use the **current price** from QuickBooks at invoice time
+- No need to re-map or update mappings when prices change
 
 ---
 

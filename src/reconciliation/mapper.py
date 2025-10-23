@@ -70,28 +70,31 @@ class MappingManager:
         return domain
 
     def map_cos_to_qbo_item(self, cos_name: str, qbo_item_id: str, qbo_item_name: str,
-                            unit_price: float, quota_gb: Optional[int] = None,
+                            quota_gb: Optional[int] = None,
                             description: Optional[str] = None) -> CoSMapping:
-        """Map a CoS to a QBO item with pricing.
+        """Map a CoS to a QBO item.
 
         Args:
             cos_name: CoS name
             qbo_item_id: QuickBooks item ID
             qbo_item_name: QuickBooks item name
-            unit_price: Price per unit
             quota_gb: Optional quota in GB
             description: Optional description
 
         Returns:
             CoSMapping object
+
+        Note:
+            Prices are not stored - they are fetched from QuickBooks at invoice time.
+            This ensures invoices always use current QuickBooks prices.
         """
-        logger.info(f"Mapping CoS {cos_name} to QBO item {qbo_item_name} at ${unit_price}")
+        logger.info(f"Mapping CoS {cos_name} to QBO item {qbo_item_name}")
 
         mapping = self.query_helper.create_cos_mapping(
             cos_name=cos_name,
             qbo_item_id=qbo_item_id,
             qbo_item_name=qbo_item_name,
-            unit_price=unit_price,
+            unit_price=0.0,  # Deprecated field, will be removed in future version
             quota_gb=quota_gb,
             description=description
         )
@@ -99,7 +102,7 @@ class MappingManager:
         # Log the change
         self.query_helper.log_change(
             change_type='cos_mapping',
-            description=f"Mapped CoS '{cos_name}' to QBO item '{qbo_item_name}' at ${unit_price}",
+            description=f"Mapped CoS '{cos_name}' to QBO item '{qbo_item_name}' (price from QBO)",
             entity_type='cos',
             entity_id=mapping.id,
             user_decision=True
@@ -133,16 +136,19 @@ class MappingManager:
         return self.query_helper.get_cos_mapping(cos_name)
 
     def get_price_for_cos(self, cos_name: str) -> Optional[float]:
-        """Get the unit price for a CoS.
+        """Get the unit price for a CoS from QuickBooks.
+
+        DEPRECATED: Prices are now fetched directly from QBO at invoice time.
+        This method is kept for backward compatibility only.
 
         Args:
             cos_name: CoS name
 
         Returns:
-            Unit price or None
+            None (deprecated)
         """
-        mapping = self.query_helper.get_cos_mapping(cos_name)
-        return mapping.unit_price if mapping else None
+        logger.warning("get_price_for_cos() is deprecated - prices are fetched from QBO at invoice time")
+        return None
 
     def is_domain_excluded(self, domain_name: str) -> bool:
         """Check if a domain should be excluded from billing.
@@ -332,7 +338,6 @@ class MappingManager:
         issues = {
             'domains_without_customer': [],
             'cos_without_mapping': [],
-            'cos_without_price': [],
             'inactive_customer_domains': []
         }
 
@@ -345,10 +350,6 @@ class MappingManager:
             if not customer or not customer.active:
                 issues['inactive_customer_domains'].append(domain.domain_name)
 
-        # Find CoS without price
-        cos_mappings = session.query(CoSMapping).filter(CoSMapping.active == True).all()
-        for mapping in cos_mappings:
-            if mapping.unit_price <= 0:
-                issues['cos_without_price'].append(mapping.cos_name)
+        # Note: We no longer validate prices since they're fetched from QBO at invoice time
 
         return issues

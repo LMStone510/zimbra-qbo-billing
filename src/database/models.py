@@ -92,7 +92,12 @@ class Exclusion(Base):
 
 
 class CoSMapping(Base):
-    """Class of Service to QuickBooks item mappings with pricing."""
+    """Class of Service to QuickBooks item mappings.
+
+    Maps Zimbra Classes of Service to QuickBooks Online service items.
+    Prices are NOT stored - they are fetched from QBO at invoice time to ensure
+    invoices always use current QuickBooks prices.
+    """
 
     __tablename__ = 'cos_mappings'
 
@@ -100,7 +105,7 @@ class CoSMapping(Base):
     cos_name = Column(String(255), unique=True, nullable=False, index=True)
     qbo_item_id = Column(String(50), nullable=False)
     qbo_item_name = Column(String(255), nullable=False)
-    unit_price = Column(Float, nullable=False)
+    unit_price = Column(Float, nullable=False)  # DEPRECATED: No longer used, prices fetched from QBO
     quota_gb = Column(Integer)  # Extracted from CoS name (e.g., 'customer-50gb' -> 50)
     description = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -106,9 +106,8 @@ class InvoiceGenerator:
                     continue
 
                 # Create line item
+                # Note: Price is automatically pulled from QBO item definition
                 quantity = hw.highwater_count
-                unit_price = cos_mapping.unit_price
-                amount = quantity * unit_price
 
                 description = f"{domain.domain_name} - {cos_mapping.cos_name}"
                 if cos_mapping.quota_gb:
@@ -117,12 +116,11 @@ class InvoiceGenerator:
                 line_items.append({
                     'item_id': cos_mapping.qbo_item_id,
                     'quantity': quantity,
-                    'unit_price': unit_price,
-                    'description': description,
-                    'amount': amount
+                    'description': description
                 })
 
-                total_amount += amount
+                # We can't calculate total_amount here since we don't fetch prices
+                # QBO will calculate it based on item prices
 
         if not line_items:
             logger.info(f"No billable usage for customer {customer_id}")
@@ -147,18 +145,21 @@ class InvoiceGenerator:
                 draft=draft
             )
 
+            # Get the actual total from the created invoice (QBO calculated it)
+            actual_total = float(invoice.TotalAmt)
+
             # Record in invoice history
             self._record_invoice_history(
                 qbo_invoice_id=invoice.Id,
                 customer_id=customer_id,
                 year=year,
                 month=month,
-                total_amount=total_amount,
+                total_amount=actual_total,
                 line_items_count=len(line_items),
                 idempotency_key=idempotency_key
             )
 
-            logger.info(f"Created invoice {invoice.Id} for ${total_amount:.2f}")
+            logger.info(f"Created invoice {invoice.Id} for ${actual_total:.2f}")
             return invoice.Id
 
         except Exception as e:
@@ -252,8 +253,11 @@ class InvoiceGenerator:
                 if not cos_mapping:
                     continue
 
+                # Fetch current price from QBO
+                qbo_item = self.qbo_client.get_item_by_id(cos_mapping.qbo_item_id)
+                unit_price = float(getattr(qbo_item, 'UnitPrice', 0)) if qbo_item else 0
+
                 quantity = hw.highwater_count
-                unit_price = cos_mapping.unit_price
                 amount = quantity * unit_price
 
                 line_items.append({

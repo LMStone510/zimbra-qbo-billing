@@ -178,14 +178,19 @@ def reconcile_domains():
 
 
 @cli.command()
-def reconcile_cos():
+@click.option('--review-all', is_flag=True, help='Review ALL mappings, not just unmapped CoS')
+def reconcile_cos(review_all):
     """Manually reconcile CoS with QuickBooks items."""
     from ..database.queries import QueryHelper
     from ..reconciliation.prompter import ReconciliationPrompter
     from ..reconciliation.mapper import MappingManager
     from ..qbo.client import get_qbo_client
+    from ..database.models import CoSMapping
 
-    click.echo("\nStarting CoS reconciliation...\n")
+    if review_all:
+        click.echo("\nReviewing ALL CoS mappings...\n")
+    else:
+        click.echo("\nStarting CoS reconciliation...\n")
 
     try:
         db_manager = get_db_manager()
@@ -196,30 +201,89 @@ def reconcile_cos():
         mapper = MappingManager(query_helper)
         qbo_client = get_qbo_client()
 
-        # Get unmapped CoS
-        unmapped = mapper.get_unmapped_items()
-
-        if not unmapped['cos']:
-            click.echo(click.style("No unmapped CoS found", fg='green'))
-            return
-
-        click.echo(f"Found {len(unmapped['cos'])} unmapped CoS\n")
-
         # Get QBO items
         qbo_items = qbo_client.get_all_items(item_type='Service')
         items_list = [
             {'id': item.Id, 'name': item.Name, 'price': getattr(item, 'UnitPrice', 0)}
-            for item in qbo_items
+            for item in qbo_items if getattr(item, 'Active', True)
         ]
 
-        # Prompt for each CoS
-        for cos_name in unmapped['cos']:
-            mapping_data = prompter.prompt_cos_mapping(cos_name, items_list)
-            if mapping_data:
-                mapper.map_cos_to_qbo_item(
-                    cos_name=cos_name,
-                    **mapping_data
-                )
+        if review_all:
+            # Review all existing mappings
+            all_mappings = session.query(CoSMapping).filter(CoSMapping.active == True).all()
+
+            if not all_mappings:
+                click.echo(click.style("No existing CoS mappings found", fg='yellow'))
+                return
+
+            click.echo(f"Found {len(all_mappings)} existing CoS mappings to review\n")
+
+            for existing_mapping in all_mappings:
+                click.echo(f"\n{'='*60}")
+                click.echo(f"Current mapping: {click.style(existing_mapping.cos_name, fg='cyan', bold=True)}")
+                click.echo(f"  → QBO Item: {existing_mapping.qbo_item_name}")
+                if existing_mapping.quota_gb:
+                    click.echo(f"  → Quota: {existing_mapping.quota_gb} GB")
+
+                # Get current price from QBO
+                qbo_item = qbo_client.get_item_by_id(existing_mapping.qbo_item_id)
+                if qbo_item:
+                    current_price = float(getattr(qbo_item, 'UnitPrice', 0))
+                    click.echo(f"  → Current QBO Price: ${current_price:.2f}")
+                else:
+                    click.echo(click.style(f"  ⚠ Warning: QBO item not found or inactive!", fg='red'))
+
+                click.echo(f"{'='*60}")
+
+                # Ask if user wants to change this mapping
+                if click.confirm("\nChange this mapping?", default=False):
+                    mapping_data = prompter.prompt_cos_mapping(existing_mapping.cos_name, items_list)
+                    if mapping_data:
+                        # Update the mapping
+                        existing_mapping.qbo_item_id = mapping_data['qbo_item_id']
+                        existing_mapping.qbo_item_name = mapping_data['qbo_item_name']
+                        if 'quota_gb' in mapping_data:
+                            existing_mapping.quota_gb = mapping_data['quota_gb']
+
+                        query_helper.log_change(
+                            'cos_mapping_updated',
+                            f"Updated CoS mapping: {existing_mapping.cos_name} → {mapping_data['qbo_item_name']}",
+                            'cos',
+                            existing_mapping.id,
+                            user_decision=True
+                        )
+                        click.echo(click.style("  ✓ Mapping updated", fg='green'))
+                elif click.confirm("Mark this CoS as inactive (no longer used)?", default=False):
+                    existing_mapping.active = False
+                    query_helper.log_change(
+                        'cos_mapping_deactivated',
+                        f"Deactivated CoS mapping: {existing_mapping.cos_name}",
+                        'cos',
+                        existing_mapping.id,
+                        user_decision=True
+                    )
+                    click.echo(click.style("  ✓ Mapping deactivated", fg='yellow'))
+                else:
+                    click.echo(click.style("  → Keeping current mapping", fg='cyan'))
+        else:
+            # Get unmapped CoS only
+            unmapped = mapper.get_unmapped_items()
+
+            if not unmapped['cos']:
+                click.echo(click.style("No unmapped CoS found", fg='green'))
+                click.echo("\nTip: Use --review-all to review existing mappings")
+                return
+
+            click.echo(f"Found {len(unmapped['cos'])} unmapped CoS\n")
+
+            # Prompt for each CoS
+            for cos_name in unmapped['cos']:
+                mapping_data = prompter.prompt_cos_mapping(cos_name, items_list)
+                if mapping_data:
+                    mapper.map_cos_to_qbo_item(
+                        cos_name=cos_name,
+                        **mapping_data
+                    )
 
         session.commit()
         click.echo(click.style("\n✓ CoS reconciliation completed", fg='green'))
