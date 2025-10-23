@@ -23,14 +23,14 @@ setup(
     packages=find_packages(),
     install_requires=[
         'paramiko>=3.4.0',
-        'sqlalchemy>=2.0.23',
+        'sqlalchemy>=2.0.28',  # Updated minimum version
         'python-quickbooks>=0.9.7',
         'openpyxl>=3.1.2',
         'python-dateutil>=2.8.2',
         'click>=8.1.7',
         'python-dotenv>=1.0.0',
         'requests-oauthlib>=1.3.1',
-        'cryptography>=41.0.7',
+        'cryptography>=42.0.0',  # Updated for security patches
     ],
     entry_points={
         'console_scripts': [

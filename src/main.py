@@ -502,9 +502,13 @@ def generate_json_summary(invoice_results: dict, report_path: str, year: int, mo
     if prompter:
         skipped_items = prompter.get_skipped_items()
 
+    # Calculate runtime
+    run_start = datetime.utcnow()
+
     summary = {
         'run_metadata': {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': run_start.isoformat() + 'Z',  # ISO8601 with UTC indicator
+            'timestamp_unix': int(run_start.timestamp()),  # Unix timestamp for easy parsing
             'billing_period': {
                 'year': year,
                 'month': month
