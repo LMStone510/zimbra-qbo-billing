@@ -107,6 +107,7 @@ def generate_report(year, month, output):
     """Generate Excel billing report for a specific month."""
     from ..database.queries import QueryHelper
     from ..reporting.excel import generate_monthly_report
+    from ..qbo.client import get_qbo_client
 
     click.echo(f"Generating report for {year}-{month:02d}...")
 
@@ -115,7 +116,9 @@ def generate_report(year, month, output):
         session = db_manager.get_session()
         query_helper = QueryHelper(session)
 
-        report_path = generate_monthly_report(year, month, query_helper, output)
+        # Get QBO client to fetch current item prices for the report
+        qbo_client = get_qbo_client()
+        report_path = generate_monthly_report(year, month, query_helper, output, qbo_client=qbo_client)
 
         click.echo(click.style(f"✓ Report generated: {report_path}", fg='green'))
 

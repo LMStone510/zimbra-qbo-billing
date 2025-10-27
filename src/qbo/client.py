@@ -128,9 +128,9 @@ class QBOClient:
             client = self._get_client()
 
             if active_only:
-                query = "SELECT * FROM Customer WHERE Active = true"
+                query = "SELECT * FROM Customer WHERE Active = true MAXRESULTS 1000"
             else:
-                query = "SELECT * FROM Customer"
+                query = "SELECT * FROM Customer MAXRESULTS 1000"
 
             customers = QBOCustomer.query(query, qb=client)
 

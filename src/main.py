@@ -127,7 +127,9 @@ def run_monthly_billing(year: int, month: int, skip_fetch: bool = False,
 
         # Step 5: Generate Excel report
         click.echo("\n[5/6] Generating Excel report...")
-        report_path = generate_monthly_report(year, month, query_helper)
+        # Get QBO client to fetch current item prices for the report
+        qbo_client = get_qbo_client()
+        report_path = generate_monthly_report(year, month, query_helper, qbo_client=qbo_client)
         click.echo(f"      Report saved to: {report_path}")
 
         # Step 6: Display summary

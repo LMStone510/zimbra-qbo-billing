@@ -35,13 +35,16 @@ logger = logging.getLogger(__name__)
 class ExcelReportGenerator:
     """Generates Excel reports for billing data."""
 
-    def __init__(self, query_helper: QueryHelper):
+    def __init__(self, query_helper: QueryHelper, qbo_client=None):
         """Initialize report generator.
 
         Args:
             query_helper: Database query helper
+            qbo_client: Optional QuickBooks client for fetching current prices
         """
         self.query_helper = query_helper
+        self.qbo_client = qbo_client
+        self._price_cache = {}  # Cache prices to avoid repeated API calls
 
         # Styling
         self.header_font = Font(bold=True, color="FFFFFF", size=12)
@@ -54,6 +57,35 @@ class ExcelReportGenerator:
             top=Side(style='thin'),
             bottom=Side(style='thin')
         )
+
+    def _get_item_price(self, qbo_item_id: str) -> float:
+        """Get current price for a QuickBooks item.
+
+        Args:
+            qbo_item_id: QuickBooks item ID
+
+        Returns:
+            Current unit price from QuickBooks, or 0.0 if unavailable
+        """
+        # Check cache first
+        if qbo_item_id in self._price_cache:
+            return self._price_cache[qbo_item_id]
+
+        # If no QBO client, return 0.0
+        if not self.qbo_client:
+            return 0.0
+
+        try:
+            # Fetch item from QuickBooks
+            item = self.qbo_client.get_item_by_id(qbo_item_id)
+            if item and hasattr(item, 'UnitPrice'):
+                price = float(item.UnitPrice or 0)
+                self._price_cache[qbo_item_id] = price
+                return price
+        except Exception as e:
+            logger.warning(f"Could not fetch price for item {qbo_item_id}: {e}")
+
+        return 0.0
 
     def generate_monthly_report(self, year: int, month: int,
                                output_path: Optional[str] = None) -> str:
@@ -80,7 +112,7 @@ class ExcelReportGenerator:
         self._create_summary_sheet(wb, year, month)
         self._create_detailed_usage_sheet(wb, year, month)
         self._create_customer_breakdown_sheet(wb, year, month)
-        self._create_nonbillable_sheet(wb, year, month)
+        # Non-billable usage tab removed - reconciliation process eliminates unmapped items
 
         # Determine output path
         if output_path is None:
@@ -138,7 +170,9 @@ class ExcelReportGenerator:
             if not cos_mapping:
                 continue
 
-            amount = hw.highwater_count * cos_mapping.unit_price
+            # Fetch current price from QuickBooks
+            unit_price = self._get_item_price(cos_mapping.qbo_item_id)
+            amount = hw.highwater_count * unit_price
 
             customer_totals[customer.customer_name]['accounts'] += hw.highwater_count
             customer_totals[customer.customer_name]['amount'] += amount
@@ -154,14 +188,20 @@ class ExcelReportGenerator:
         total_amount = sum(c['amount'] for c in customer_totals.values())
 
         ws[f'A{row}'] = "Total Customers:"
-        ws[f'B{row}'] = total_customers
+        customers_cell = ws[f'B{row}']
+        customers_cell.value = total_customers
+        customers_cell.alignment = Alignment(horizontal='right')
         row += 1
         ws[f'A{row}'] = "Total Accounts:"
-        ws[f'B{row}'] = total_accounts
+        accounts_cell = ws[f'B{row}']
+        accounts_cell.value = total_accounts
+        accounts_cell.alignment = Alignment(horizontal='right')
         row += 1
         ws[f'A{row}'] = "Total Revenue:"
-        ws[f'B{row}'] = f"${total_amount:.2f}"
-        ws[f'B{row}'].font = self.total_font
+        revenue_cell = ws[f'B{row}']
+        revenue_cell.value = f"${total_amount:,.2f}"
+        revenue_cell.font = self.total_font
+        revenue_cell.alignment = Alignment(horizontal='right')
 
         # Customer summary table
         row += 2
@@ -182,14 +222,26 @@ class ExcelReportGenerator:
         for customer_name in sorted(customer_totals.keys()):
             data = customer_totals[customer_name]
             ws[f'A{row}'] = customer_name
-            ws[f'B{row}'] = data['accounts']
-            ws[f'C{row}'] = f"${data['amount']:.2f}"
+            # Center the account count
+            accounts_cell = ws[f'B{row}']
+            accounts_cell.value = data['accounts']
+            accounts_cell.alignment = Alignment(horizontal='center')
+            # Right-justify dollar amount
+            amount_cell = ws[f'C{row}']
+            amount_cell.value = f"${data['amount']:,.2f}"
+            amount_cell.alignment = Alignment(horizontal='right')
             row += 1
 
         # Totals row
         ws[f'A{row}'] = "TOTAL"
-        ws[f'B{row}'] = total_accounts
-        ws[f'C{row}'] = f"${total_amount:.2f}"
+        # Center total accounts
+        total_accounts_cell = ws[f'B{row}']
+        total_accounts_cell.value = total_accounts
+        total_accounts_cell.alignment = Alignment(horizontal='center')
+        # Right-justify total amount
+        total_amount_cell = ws[f'C{row}']
+        total_amount_cell.value = f"${total_amount:,.2f}"
+        total_amount_cell.alignment = Alignment(horizontal='right')
 
         for col in ['A', 'B', 'C']:
             ws[f'{col}{row}'].font = self.total_font
@@ -235,15 +287,19 @@ class ExcelReportGenerator:
             if not cos_mapping:
                 continue
 
-            total = hw.highwater_count * cos_mapping.unit_price
+            # Fetch current price from QuickBooks
+            unit_price = self._get_item_price(cos_mapping.qbo_item_id)
+            total = hw.highwater_count * unit_price
 
             ws.cell(row=row, column=1, value=customer.customer_name)
             ws.cell(row=row, column=2, value=domain.domain_name)
             ws.cell(row=row, column=3, value=cos_mapping.cos_name)
-            ws.cell(row=row, column=4, value=cos_mapping.quota_gb or '')
-            ws.cell(row=row, column=5, value=hw.highwater_count)
-            ws.cell(row=row, column=6, value=f"${cos_mapping.unit_price:.2f}")
-            ws.cell(row=row, column=7, value=f"${total:.2f}")
+            quota_cell = ws.cell(row=row, column=4, value=cos_mapping.quota_gb or '')
+            quota_cell.alignment = Alignment(horizontal='center')
+            accounts_cell = ws.cell(row=row, column=5, value=hw.highwater_count)
+            accounts_cell.alignment = Alignment(horizontal='center')
+            ws.cell(row=row, column=6, value=f"${unit_price:,.2f}")
+            ws.cell(row=row, column=7, value=f"${total:,.2f}")
 
             row += 1
 
@@ -285,13 +341,16 @@ class ExcelReportGenerator:
             if not cos_mapping:
                 continue
 
+            # Fetch current price from QuickBooks
+            unit_price = self._get_item_price(cos_mapping.qbo_item_id)
+
             customer_data[customer.customer_name].append({
                 'domain': domain.domain_name,
                 'cos': cos_mapping.cos_name,
                 'quota_gb': cos_mapping.quota_gb,
                 'count': hw.highwater_count,
-                'unit_price': cos_mapping.unit_price,
-                'total': hw.highwater_count * cos_mapping.unit_price
+                'unit_price': unit_price,
+                'total': hw.highwater_count * unit_price
             })
 
         # Generate breakdown for each customer
@@ -314,16 +373,18 @@ class ExcelReportGenerator:
             for item in customer_data[customer_name]:
                 ws.cell(row=row, column=1, value=item['domain'])
                 ws.cell(row=row, column=2, value=item['cos'])
-                ws.cell(row=row, column=3, value=item['quota_gb'] or '')
-                ws.cell(row=row, column=4, value=item['count'])
-                ws.cell(row=row, column=5, value=f"${item['unit_price']:.2f}")
-                ws.cell(row=row, column=6, value=f"${item['total']:.2f}")
+                quota_cell = ws.cell(row=row, column=3, value=item['quota_gb'] or '')
+                quota_cell.alignment = Alignment(horizontal='center')
+                accounts_cell = ws.cell(row=row, column=4, value=item['count'])
+                accounts_cell.alignment = Alignment(horizontal='center')
+                ws.cell(row=row, column=5, value=f"${item['unit_price']:,.2f}")
+                ws.cell(row=row, column=6, value=f"${item['total']:,.2f}")
                 customer_total += item['total']
                 row += 1
 
             # Customer total
             ws.cell(row=row, column=5, value="TOTAL:").font = self.total_font
-            ws.cell(row=row, column=6, value=f"${customer_total:.2f}").font = self.total_font
+            ws.cell(row=row, column=6, value=f"${customer_total:,.2f}").font = self.total_font
             row += 2
 
         # Adjust column widths
@@ -376,7 +437,8 @@ class ExcelReportGenerator:
 
             ws.cell(row=row, column=1, value=domain.domain_name)
             ws.cell(row=row, column=2, value=cos_mapping.cos_name)
-            ws.cell(row=row, column=3, value=hw.highwater_count)
+            accounts_cell = ws.cell(row=row, column=3, value=hw.highwater_count)
+            accounts_cell.alignment = Alignment(horizontal='center')
             ws.cell(row=row, column=4, value=reason)
             row += 1
 
@@ -403,7 +465,7 @@ class ExcelReportGenerator:
 
 
 def generate_monthly_report(year: int, month: int, query_helper: QueryHelper,
-                           output_path: Optional[str] = None) -> str:
+                           output_path: Optional[str] = None, qbo_client=None) -> str:
     """Convenience function to generate monthly report.
 
     Args:
@@ -411,9 +473,10 @@ def generate_monthly_report(year: int, month: int, query_helper: QueryHelper,
         month: Month
         query_helper: Database query helper
         output_path: Optional output path
+        qbo_client: Optional QuickBooks client for fetching current prices
 
     Returns:
         Path to generated report
     """
-    generator = ExcelReportGenerator(query_helper)
+    generator = ExcelReportGenerator(query_helper, qbo_client)
     return generator.generate_monthly_report(year, month, output_path)
