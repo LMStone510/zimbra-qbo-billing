@@ -156,7 +156,7 @@ class ExcelReportGenerator:
 
         # Calculate totals
         from collections import defaultdict
-        customer_totals = defaultdict(lambda: {'accounts': 0, 'amount': 0.0})
+        customer_totals = defaultdict(lambda: {'accounts': 0, 'amount': Decimal('0.00')})
 
         for hw in highwater_data:
             domain = self.query_helper.session.query(Domain).get(hw.domain_id)
@@ -370,7 +370,7 @@ class ExcelReportGenerator:
             row += 1
 
             # Data rows
-            customer_total = 0.0
+            customer_total = Decimal('0.00')
             for item in customer_data[customer_name]:
                 ws.cell(row=row, column=1, value=item['domain'])
                 ws.cell(row=row, column=2, value=item['cos'])
