@@ -336,9 +336,11 @@ class QBOClient:
             if due_date:
                 invoice.DueDate = due_date.strftime('%Y-%m-%d')
 
-            # Set memo
+            # Set customer memo (visible on printed invoice)
             if memo:
-                invoice.PrivateNote = memo
+                from quickbooks.objects.base import CustomerMemo as QBOCustomerMemo
+                invoice.CustomerMemo = QBOCustomerMemo()
+                invoice.CustomerMemo.value = memo
 
             # Add line items
             invoice.Line = []
