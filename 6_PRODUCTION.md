@@ -490,12 +490,106 @@ python3 -m src.ui.cli sync-customers
 
 **Important**: Always clean the database when switching back to avoid mixing production and sandbox data.
 
+## Database Maintenance
+
+### Regular Backups
+
+Back up `data/billing.db` before each monthly run:
+
+```bash
+# Create timestamped backup
+cp data/billing.db data/billing.db.$(date +%Y%m%d)
+
+# Or with time included
+cp data/billing.db data/billing.db.$(date +%Y%m%d_%H%M%S)
+```
+
+**Best practice**: Keep at least 3 months of backups:
+```bash
+# List backups
+ls -lht data/billing.db.backup_*
+
+# Remove old backups (keep last 3 months)
+cd data
+ls -t billing.db.backup_* | tail -n +4 | xargs rm -f
+```
+
+### Database Vacuuming
+
+SQLite databases can accumulate unused space over time. Vacuum the database periodically (recommended quarterly or after major cleanups):
+
+**Option 1: Backup First (Recommended)**
+```bash
+# 1. Create backup before vacuum
+cp data/billing.db data/billing.db.pre_vacuum_$(date +%Y%m%d)
+
+# 2. Vacuum the database (reclaims space and defragments)
+sqlite3 data/billing.db "VACUUM;"
+
+# 3. Check database integrity
+sqlite3 data/billing.db "PRAGMA integrity_check;"
+```
+
+**Expected output**: `ok`
+
+**Option 2: Quick Vacuum (No Backup)**
+```bash
+# Only use if you have recent backups
+sqlite3 data/billing.db "VACUUM;"
+```
+
+**When to vacuum:**
+- After deleting large amounts of data
+- Quarterly as part of maintenance
+- If database file size seems larger than expected
+- After switching between sandbox and production
+
+**What VACUUM does:**
+- Reclaims unused space from deleted records
+- Defragments the database file
+- Rebuilds indexes
+- Can significantly reduce file size
+
+**Important**: VACUUM requires enough disk space to temporarily hold both the old and new database file. Ensure you have at least 2x the current database size available.
+
+**Check space savings:**
+```bash
+# Before vacuum
+ls -lh data/billing.db
+
+# After vacuum
+ls -lh data/billing.db
+
+# Show difference
+du -h data/billing.db*
+```
+
+### Database Health Check
+
+Run integrity checks periodically:
+```bash
+# Check database integrity
+sqlite3 data/billing.db "PRAGMA integrity_check;"
+
+# Check for corruption
+sqlite3 data/billing.db "PRAGMA quick_check;"
+
+# Show database stats
+sqlite3 data/billing.db "
+.dbinfo
+SELECT 'Total Tables: ' || COUNT(*) FROM sqlite_master WHERE type='table';
+SELECT 'Total Records: ' || (SELECT SUM(cnt) FROM (
+  SELECT COUNT(*) as cnt FROM invoice_history
+  UNION ALL SELECT COUNT(*) FROM customers
+  UNION ALL SELECT COUNT(*) FROM domains
+  UNION ALL SELECT COUNT(*) FROM cos_mappings
+));
+"
+```
+
 ## Important Production Notes
 
-1. **Backup Regularly**: Back up `data/billing.db` before each monthly run
-   ```bash
-   cp data/billing.db data/billing.db.$(date +%Y%m%d)
-   ```
+1. **Backup Regularly**: Back up `data/billing.db` before each monthly run (see Database Maintenance section above)
 
 2. **Review Before Sending**: Always review draft invoices in QBO before sending
 
