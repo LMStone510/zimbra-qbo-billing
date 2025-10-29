@@ -15,6 +15,7 @@ Handles the logic of converting usage data into QBO invoices.
 
 import logging
 import hashlib
+import random
 from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Dict, Optional, Tuple
@@ -39,6 +40,20 @@ class InvoiceGenerator:
         """
         self.qbo_client = qbo_client
         self.query_helper = query_helper
+
+    def _generate_invoice_number(self, year: int, month: int) -> str:
+        """Generate invoice number in format yyyymmXXXX.
+
+        Args:
+            year: Billing year
+            month: Billing month
+
+        Returns:
+            Invoice number string (e.g., "202506XXXX")
+        """
+        # Generate random 4-digit suffix
+        random_suffix = random.randint(1000, 9999)
+        return f"{year}{month:02d}{random_suffix}"
 
     def generate_invoice_for_customer(self, customer_id: int, year: int, month: int,
                                      draft: bool = True) -> Optional[str]:
@@ -140,6 +155,9 @@ class InvoiceGenerator:
         # Generate invoice memo
         memo = f"Zimbra Email Services - {self._get_month_name(month)} {year}"
 
+        # Generate invoice number in format yyyymmXXXX
+        doc_number = self._generate_invoice_number(year, month)
+
         # Create invoice in QBO
         try:
             invoice = self.qbo_client.create_invoice(
@@ -147,7 +165,8 @@ class InvoiceGenerator:
                 line_items=line_items,
                 invoice_date=datetime.combine(invoice_date, datetime.min.time()),
                 memo=memo,
-                draft=draft
+                draft=draft,
+                doc_number=doc_number
             )
 
             # Get the actual total from the created invoice (QBO calculated it)

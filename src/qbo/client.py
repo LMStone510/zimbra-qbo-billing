@@ -285,7 +285,8 @@ class QBOClient:
                       invoice_date: Optional[datetime] = None,
                       due_date: Optional[datetime] = None,
                       memo: Optional[str] = None,
-                      draft: bool = True) -> Invoice:
+                      draft: bool = True,
+                      doc_number: Optional[str] = None) -> Invoice:
         """Create a new invoice in QuickBooks.
 
         This method handles only the QuickBooks API interaction. The caller is responsible
@@ -301,6 +302,7 @@ class QBOClient:
             due_date: Due date (optional)
             memo: Invoice memo/notes
             draft: If True, create as draft (recommended)
+            doc_number: Invoice number (optional, will be auto-assigned if None)
 
         Returns:
             Created Invoice object
@@ -323,6 +325,10 @@ class QBOClient:
             from quickbooks.objects.base import Ref
             invoice.CustomerRef = Ref()
             invoice.CustomerRef.value = customer_id
+
+            # Set invoice number if provided
+            if doc_number:
+                invoice.DocNumber = doc_number
 
             # Set dates
             if invoice_date:
