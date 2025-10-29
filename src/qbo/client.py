@@ -32,6 +32,10 @@ from quickbooks.objects.detailline import SalesItemLine, SalesItemLineDetail
 from quickbooks.exceptions import QuickbooksException
 
 from .auth import QBOAuthManager
+from .errors import (
+    QBOError, classify_qbo_error, retry_with_backoff,
+    QBOAuthError, QBORateLimitError
+)
 from ..config import get_config
 
 logger = logging.getLogger(__name__)
@@ -127,21 +131,31 @@ class QBOClient:
         self._last_request_time = time.time()
 
     def _handle_error(self, operation: str, error: Exception) -> None:
-        """Handle API errors consistently.
+        """Handle API errors consistently with classification.
 
         Args:
             operation: Description of operation
             error: Exception that occurred
+
+        Raises:
+            QBOError: Classified error with retry information
         """
-        logger.error(f"Error during {operation}: {error}")
+        # Classify the error
+        qbo_error = classify_qbo_error(error, operation=operation)
+
+        # Log with appropriate level
+        if qbo_error.is_retryable():
+            logger.warning(f"{operation} failed with retryable error: {qbo_error}")
+        else:
+            logger.error(f"{operation} failed with non-retryable error: {qbo_error}")
 
         if isinstance(error, QuickbooksException):
-            # QBO-specific error
             logger.error(f"QBO Error details: {error.detail}")
 
-        raise
+        raise qbo_error
 
     # Customer operations
+    @retry_with_backoff(max_retries=3, initial_delay=1.0)
     def get_all_customers(self, active_only: bool = True) -> List[QBOCustomer]:
         """Get all customers from QuickBooks.
 
@@ -215,6 +229,7 @@ class QBOClient:
             self._handle_error("search_customers", e)
 
     # Item operations
+    @retry_with_backoff(max_retries=3, initial_delay=1.0)
     def get_all_items(self, item_type: Optional[str] = None) -> List[Item]:
         """Get all items (products/services) from QuickBooks.
 
@@ -265,6 +280,7 @@ class QBOClient:
             return None
 
     # Invoice operations
+    @retry_with_backoff(max_retries=3, initial_delay=2.0)
     def create_invoice(self, customer_id: str, line_items: List[Dict],
                       invoice_date: Optional[datetime] = None,
                       due_date: Optional[datetime] = None,

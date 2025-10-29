@@ -162,6 +162,7 @@ class UsageData(Base):
     __table_args__ = (
         UniqueConstraint('report_date', 'domain_id', 'cos_id', name='unique_usage_record'),
         Index('idx_usage_date_domain', 'report_date', 'domain_id'),
+        CheckConstraint('account_count >= 0', name='check_account_count_positive'),
     )
 
     def __repr__(self):
@@ -190,6 +191,8 @@ class MonthlyHighwater(Base):
         UniqueConstraint('year', 'month', 'domain_id', 'cos_id', name='unique_monthly_highwater'),
         Index('idx_highwater_month', 'year', 'month'),
         CheckConstraint('month >= 1 AND month <= 12', name='check_valid_month'),
+        CheckConstraint('year >= 2020 AND year <= 2100', name='check_valid_year'),
+        CheckConstraint('highwater_count >= 0', name='check_highwater_positive'),
     )
 
     def __repr__(self):
@@ -221,6 +224,9 @@ class InvoiceHistory(Base):
     __table_args__ = (
         Index('idx_invoice_billing_period', 'billing_year', 'billing_month'),
         CheckConstraint('billing_month >= 1 AND billing_month <= 12', name='check_valid_billing_month'),
+        CheckConstraint('billing_year >= 2020 AND billing_year <= 2100', name='check_valid_billing_year'),
+        CheckConstraint('total_amount >= 0', name='check_total_amount_positive'),
+        CheckConstraint('line_items_count >= 0', name='check_line_items_positive'),
     )
 
     def __repr__(self):
