@@ -47,7 +47,7 @@ class ChangeDetector:
             current_domains: Set of domain names from current reports
 
         Returns:
-            List of new domain names
+            List of new domain names (excluding those in exclusion list)
         """
         # Get all known domains from database
         known_domains = self.session.query(Domain.domain_name).all()
@@ -56,8 +56,16 @@ class ChangeDetector:
         # Find new domains
         new_domains = current_domains - known_domain_set
 
-        logger.info(f"Found {len(new_domains)} new domains")
-        return sorted(list(new_domains))
+        # Filter out excluded domains
+        filtered_domains = []
+        for domain_name in new_domains:
+            if not self.query_helper.is_domain_excluded(domain_name):
+                filtered_domains.append(domain_name)
+            else:
+                logger.debug(f"Excluding domain from reconciliation: {domain_name}")
+
+        logger.info(f"Found {len(filtered_domains)} new domains (after excluding {len(new_domains) - len(filtered_domains)} excluded domains)")
+        return sorted(filtered_domains)
 
     def find_missing_domains(self, current_domains: Set[str], year: int, month: int) -> List[str]:
         """Find domains that were active last month but missing this month.
@@ -98,7 +106,7 @@ class ChangeDetector:
             current_domains: Set of domain names from current reports
 
         Returns:
-            List of reappeared domain names
+            List of reappeared domain names (excluding those in exclusion list)
         """
         # Get domains that exist in DB but were marked inactive
         inactive_domains = self.session.query(Domain).filter(
@@ -108,9 +116,12 @@ class ChangeDetector:
         reappeared = []
         for domain in inactive_domains:
             if domain.domain_name in current_domains:
-                reappeared.append(domain.domain_name)
+                if not self.query_helper.is_domain_excluded(domain.domain_name):
+                    reappeared.append(domain.domain_name)
+                else:
+                    logger.debug(f"Excluding reappearing domain from reconciliation: {domain.domain_name}")
 
-        logger.info(f"Found {len(reappeared)} reappearing domains")
+        logger.info(f"Found {len(reappeared)} reappearing domains (after exclusions)")
         return reappeared
 
     def find_new_cos(self, current_cos_names: Set[str]) -> List[str]:
@@ -120,7 +131,7 @@ class ChangeDetector:
             current_cos_names: Set of CoS names from current reports
 
         Returns:
-            List of unmapped CoS names
+            List of unmapped CoS names (excluding those in exclusion list)
         """
         # Get all mapped CoS names
         mapped_cos = self.session.query(CoSMapping.cos_name).filter(
@@ -131,8 +142,16 @@ class ChangeDetector:
         # Find new CoS
         new_cos = current_cos_names - mapped_cos_set
 
-        logger.info(f"Found {len(new_cos)} unmapped CoS types")
-        return sorted(list(new_cos))
+        # Filter out excluded CoS
+        filtered_cos = []
+        for cos_name in new_cos:
+            if not self.query_helper.is_cos_excluded(cos_name):
+                filtered_cos.append(cos_name)
+            else:
+                logger.debug(f"Excluding CoS from reconciliation: {cos_name}")
+
+        logger.info(f"Found {len(filtered_cos)} unmapped CoS types (after excluding {len(new_cos) - len(filtered_cos)} excluded CoS)")
+        return sorted(filtered_cos)
 
     def find_obsolete_cos_mappings(self, current_cos_names: Set[str]) -> List[Dict]:
         """Find CoS mappings that no longer appear in Zimbra data.
