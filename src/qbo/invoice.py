@@ -86,6 +86,15 @@ class InvoiceGenerator:
             logger.warning(f"No domains found for customer {customer_id}")
             return None
 
+        # Set invoice date and service date (first of next month)
+        if month == 12:
+            invoice_date = date(year + 1, 1, 1)
+        else:
+            invoice_date = date(year, month + 1, 1)
+
+        # Service date is same as invoice date (first of following month)
+        service_date = datetime.combine(invoice_date, datetime.min.time())
+
         # Collect usage data
         line_items = []
         total_amount = 0.0
@@ -117,7 +126,8 @@ class InvoiceGenerator:
                 line_items.append({
                     'item_id': cos_mapping.qbo_item_id,
                     'quantity': quantity,
-                    'description': description
+                    'description': description,
+                    'service_date': service_date
                 })
 
                 # We can't calculate total_amount here since we don't fetch prices
@@ -129,12 +139,6 @@ class InvoiceGenerator:
 
         # Generate invoice memo
         memo = f"Zimbra Email Services - {self._get_month_name(month)} {year}"
-
-        # Set invoice date (first of next month)
-        if month == 12:
-            invoice_date = date(year + 1, 1, 1)
-        else:
-            invoice_date = date(year, month + 1, 1)
 
         # Create invoice in QBO
         try:

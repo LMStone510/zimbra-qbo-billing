@@ -357,6 +357,10 @@ class QBOClient:
                 # QBO API expects float, convert from Decimal
                 detail.UnitPrice = float(unit_price)
 
+                # Set service date if provided in line item data
+                if 'service_date' in item_data:
+                    detail.ServiceDate = item_data['service_date'].strftime('%Y-%m-%d')
+
                 line.SalesItemLineDetail = detail
                 # QBO API expects float, convert from Decimal
                 line.Amount = float(line_amount)
