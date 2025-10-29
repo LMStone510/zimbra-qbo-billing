@@ -21,6 +21,7 @@ import logging
 import time
 from typing import List, Dict, Optional
 from datetime import datetime
+from decimal import Decimal
 
 import requests
 from quickbooks import QuickBooks
@@ -34,6 +35,35 @@ from .auth import QBOAuthManager
 from ..config import get_config
 
 logger = logging.getLogger(__name__)
+
+
+def _escape_qbo_query_string(value: str) -> str:
+    """Escape special characters in QuickBooks query strings.
+
+    QBO uses SQL-like syntax where single quotes, %, and _ have special meaning.
+
+    Args:
+        value: String to escape
+
+    Returns:
+        Escaped string safe for use in QBO queries
+    """
+    if not value:
+        return value
+
+    # Escape single quotes by doubling them (SQL standard)
+    value = value.replace("'", "''")
+
+    # Escape wildcards to prevent unintended pattern matching
+    value = value.replace("%", "\\%")
+    value = value.replace("_", "\\_")
+
+    # Limit length to prevent excessively long queries
+    max_length = 255
+    if len(value) > max_length:
+        value = value[:max_length]
+
+    return value
 
 
 class QBOClient:
@@ -175,7 +205,9 @@ class QBOClient:
 
         try:
             client = self._get_client()
-            query = f"SELECT * FROM Customer WHERE DisplayName LIKE '%{search_term}%'"
+            # Escape search term to prevent query injection and malformed queries
+            escaped_term = _escape_qbo_query_string(search_term)
+            query = f"SELECT * FROM Customer WHERE DisplayName LIKE '%{escaped_term}%'"
             customers = QBOCustomer.query(query, qb=client)
             return customers
 
@@ -296,20 +328,22 @@ class QBOClient:
                 # Fetch current price from QuickBooks item
                 # We fetch at invoice-time to ensure we always use current prices
                 item = self.get_item_by_id(item_data['item_id'])
-                unit_price = float(getattr(item, 'UnitPrice', 0)) if item else 0
+                unit_price = Decimal(str(getattr(item, 'UnitPrice', 0))) if item else Decimal('0.00')
                 quantity = item_data['quantity']
 
                 # Calculate line amount (QBO requires this to match UnitPrice × Qty)
-                line_amount = unit_price * quantity
+                line_amount = unit_price * Decimal(quantity)
 
                 detail = SalesItemLineDetail()
                 detail.ItemRef = Ref()
                 detail.ItemRef.value = item_data['item_id']
                 detail.Qty = quantity
-                detail.UnitPrice = unit_price
+                # QBO API expects float, convert from Decimal
+                detail.UnitPrice = float(unit_price)
 
                 line.SalesItemLineDetail = detail
-                line.Amount = line_amount
+                # QBO API expects float, convert from Decimal
+                line.Amount = float(line_amount)
                 invoice.Line.append(line)
 
             # Note: We don't set EmailStatus for draft invoices to avoid

@@ -16,6 +16,7 @@ Handles the logic of converting usage data into QBO invoices.
 import logging
 import hashlib
 from datetime import datetime, date
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
 
@@ -146,7 +147,8 @@ class InvoiceGenerator:
             )
 
             # Get the actual total from the created invoice (QBO calculated it)
-            actual_total = float(invoice.TotalAmt)
+            # Convert to Decimal for precise money handling
+            actual_total = Decimal(str(invoice.TotalAmt))
 
             # Record in invoice history
             self._record_invoice_history(
@@ -255,10 +257,10 @@ class InvoiceGenerator:
 
                 # Fetch current price from QBO
                 qbo_item = self.qbo_client.get_item_by_id(cos_mapping.qbo_item_id)
-                unit_price = float(getattr(qbo_item, 'UnitPrice', 0)) if qbo_item else 0
+                unit_price = Decimal(str(getattr(qbo_item, 'UnitPrice', 0))) if qbo_item else Decimal('0.00')
 
                 quantity = hw.highwater_count
-                amount = quantity * unit_price
+                amount = Decimal(quantity) * unit_price
 
                 line_items.append({
                     'domain': domain.domain_name,

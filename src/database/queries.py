@@ -13,6 +13,7 @@
 import logging
 import fnmatch
 from datetime import datetime
+from decimal import Decimal
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
@@ -252,7 +253,7 @@ class QueryHelper:
         return self.session.get(CoSMapping, cos_id)
 
     def create_cos_mapping(self, cos_name: str, qbo_item_id: str, qbo_item_name: str,
-                          unit_price: float, quota_gb: Optional[int] = None,
+                          unit_price: Decimal, quota_gb: Optional[int] = None,
                           description: Optional[str] = None) -> CoSMapping:
         """Create a new CoS mapping.
 
@@ -260,7 +261,7 @@ class QueryHelper:
             cos_name: CoS name
             qbo_item_id: QuickBooks item ID
             qbo_item_name: QuickBooks item name
-            unit_price: Price per unit
+            unit_price: Price per unit (Decimal)
             quota_gb: Optional quota in GB
             description: Optional description
 

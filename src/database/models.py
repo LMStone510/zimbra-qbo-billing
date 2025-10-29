@@ -33,8 +33,9 @@ never accidentally removed and remain available for accounting and tax purposes.
 
 from datetime import datetime
 from typing import Optional
+from decimal import Decimal
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, Boolean, Text,
+    Column, Integer, String, Float, Numeric, DateTime, Boolean, Text,
     ForeignKey, UniqueConstraint, Index, CheckConstraint
 )
 from sqlalchemy.orm import declarative_base, relationship
@@ -126,7 +127,7 @@ class CoSMapping(Base):
     cos_name = Column(String(255), unique=True, nullable=False, index=True)
     qbo_item_id = Column(String(50), nullable=False)
     qbo_item_name = Column(String(255), nullable=False)
-    unit_price = Column(Float, nullable=False)  # DEPRECATED: No longer used, prices fetched from QBO
+    unit_price = Column(Numeric(18, 2), nullable=False)  # DEPRECATED: No longer used, prices fetched from QBO
     quota_gb = Column(Integer)  # Extracted from CoS name (e.g., 'customer-50gb' -> 50)
     description = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -206,7 +207,7 @@ class InvoiceHistory(Base):
     billing_year = Column(Integer, nullable=False)
     billing_month = Column(Integer, nullable=False)
     invoice_date = Column(DateTime, nullable=False)
-    total_amount = Column(Float, nullable=False)
+    total_amount = Column(Numeric(18, 2), nullable=False)
     line_items_count = Column(Integer)
     status = Column(String(20), default='draft')  # draft, sent, paid, void
     idempotency_key = Column(String(255), unique=True, nullable=True, index=True)  # For duplicate prevention

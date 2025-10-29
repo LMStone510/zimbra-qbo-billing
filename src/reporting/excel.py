@@ -19,6 +19,7 @@ Generates comprehensive Excel reports with:
 
 import logging
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Optional, List, Dict
 
@@ -71,21 +72,21 @@ class ExcelReportGenerator:
         if qbo_item_id in self._price_cache:
             return self._price_cache[qbo_item_id]
 
-        # If no QBO client, return 0.0
+        # If no QBO client, return Decimal zero
         if not self.qbo_client:
-            return 0.0
+            return Decimal('0.00')
 
         try:
             # Fetch item from QuickBooks
             item = self.qbo_client.get_item_by_id(qbo_item_id)
             if item and hasattr(item, 'UnitPrice'):
-                price = float(item.UnitPrice or 0)
+                price = Decimal(str(item.UnitPrice or 0))
                 self._price_cache[qbo_item_id] = price
                 return price
         except Exception as e:
             logger.warning(f"Could not fetch price for item {qbo_item_id}: {e}")
 
-        return 0.0
+        return Decimal('0.00')
 
     def generate_monthly_report(self, year: int, month: int,
                                output_path: Optional[str] = None) -> str:

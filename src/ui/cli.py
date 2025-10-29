@@ -20,6 +20,7 @@ Provides CLI commands for:
 import logging
 import sys
 from datetime import datetime
+from decimal import Decimal
 
 import click
 
@@ -231,7 +232,7 @@ def reconcile_cos(review_all):
                 # Get current price from QBO
                 qbo_item = qbo_client.get_item_by_id(existing_mapping.qbo_item_id)
                 if qbo_item:
-                    current_price = float(getattr(qbo_item, 'UnitPrice', 0))
+                    current_price = Decimal(str(getattr(qbo_item, 'UnitPrice', 0)))
                     click.echo(f"  → Current QBO Price: ${current_price:.2f}")
                 else:
                     click.echo(click.style(f"  ⚠ Warning: QBO item not found or inactive!", fg='red'))

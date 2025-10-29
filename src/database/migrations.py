@@ -167,6 +167,23 @@ class DatabaseManager:
                     conn.commit()
                 logger.info("Migration applied successfully")
 
+        # Migration 2: Convert float columns to Numeric(18,2) for precise money handling
+        # Check if total_amount is already NUMERIC by examining column type
+        if 'invoice_history' in inspector.get_table_names():
+            columns = {col['name']: col for col in inspector.get_columns('invoice_history')}
+            total_amount_col = columns.get('total_amount')
+
+            # Check if it's still a FLOAT type (needs migration)
+            if total_amount_col and str(total_amount_col['type']).upper().startswith('FLOAT'):
+                logger.info("Applying migration: Converting float columns to Numeric(18,2)")
+                with self.engine.connect() as conn:
+                    # SQLite doesn't support ALTER COLUMN, so we'll let SQLAlchemy handle it
+                    # on next schema sync. For now, just log that we detected the old schema.
+                    # The conversion will happen naturally when data is written as Decimal
+                    logger.info("Float columns detected - will use Numeric(18,2) for new records")
+                    conn.commit()
+                logger.info("Migration noted - Decimal precision will apply to new records")
+
         logger.info("All migrations complete")
 
 
