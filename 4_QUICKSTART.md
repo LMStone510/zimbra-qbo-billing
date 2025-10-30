@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-**Current Status**: ✅ Fully configured and tested with QuickBooks Sandbox
+**Current Status**: ✅ Fully configured, tested with QuickBooks Sandbox and used in production at Mission Critical Email
 
 ## Already Set Up
 
