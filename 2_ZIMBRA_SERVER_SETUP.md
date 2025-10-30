@@ -1,6 +1,15 @@
-# Zimbra Server Setup (Linux Only)
+# Step 2: Zimbra Server Setup
 
 **Version**: v1.13.0
+
+**Goal**: Install the usage report script on your Zimbra mailbox server to generate weekly billing data.
+
+**Time Required**: 20-30 minutes
+
+**Prerequisites**:
+- ✅ Completed Step 1: QBO Developer Setup
+- Linux-based Zimbra mailbox server (RHEL, Ubuntu, etc.)
+- Root or sudo access on the Zimbra server
 
 This document describes how to set up the Zimbra mailbox server to generate weekly usage reports for billing.
 
@@ -326,4 +335,10 @@ If you encounter issues:
 
 ---
 
-**Ready for billing?** After setting up the Zimbra server, proceed to 3_SETUP_GUIDE.md to configure the billing application.
+## What's Next?
+
+✅ **You've completed Step 2!**
+
+**Next Step**: [3_APPLICATION_DEPLOYMENT.md](3_APPLICATION_DEPLOYMENT.md)
+
+In Step 3, you'll deploy the billing application on your workstation and test it with the QuickBooks Sandbox.
