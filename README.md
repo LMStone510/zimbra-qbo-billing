@@ -1,53 +1,81 @@
-# Project Overview
+# Zimbra-to-QuickBooks Billing Automation
 
 **Version**: v1.13.0
 
-Welcome! This guide explains what this project does and how it can help you automate Zimbra billing with QuickBooks Online.
+**Status**: ✅ Production-ready, tested with QuickBooks Sandbox and used in production at Mission Critical Email
 
-## Goals
+Welcome! This is an automated monthly billing system for Zimbra BSPs (Bulk Service Providers) using QuickBooks Online.
 
-The software in this repo will help you as a Zimbra BSP, if you use QuickBooks Online ("QBO"), to automate monthly invoicing "The Mission Critical Email Way".
+## What This Does
 
-## Our Way: Class of Service Based Pricing
+Automates the entire monthly billing process:
 
-We use Classes of Service to set pricing; bigger quotas, more features, etc. Each Class of Service in Zimbra can be (and is) mapped to a List Item in QBO.
+1. **Fetches** weekly usage reports from your Zimbra server (via SSH)
+2. **Calculates** monthly high-water marks per domain and Class of Service
+3. **Maps** domains to QuickBooks customers automatically
+4. **Creates** draft invoices in QuickBooks Online
+5. **Generates** Excel reports for your records
 
-Once you've done that, you are almost ready to use our software, which we are Open Sourcing via an MIT license.
+All you need to do is review and send the invoices from QuickBooks!
 
-## Get The Usage Data By CoS
+## Our Approach: Class of Service Based Pricing
 
-Next, you need to run a script on one of your Zimbra mailbox servers (Linux) that will, weekly, via a cron job, generate plain-text usage reports. The script, which took us a few months to develop, is included.
+We bill based on **Classes of Service** (CoS) - each Zimbra CoS (e.g., "2GB Mailbox", "50GB Mailbox") maps to a QuickBooks service item with its own price. The system calculates the maximum mailboxes per domain/CoS during the month (high-water mark) and bills accordingly.
 
-## Process The Data Monthly, Generate Invoices Automatically, Approve and Send Invoices Manually
+## System Requirements
 
-We then crafted some Python code (runs on macOS, Linux, or Windows) that:
+- **Billing Application**: Python 3.8+ (runs on macOS, Linux, or Windows)
+- **Zimbra Server**: Linux (for usage report generation)
+- **QuickBooks**: QuickBooks Online account
 
-1. Downloads the Usage Data reports from the Zimbra mailbox server.
-2. Talks to QBO to make sure that email domains are mapped to QBO Customers.
-3. Talks to QBO to make sure that Classes of Service are mapped to QBO List Items.
-4. Prompts the user to map any unmapped email domains and/or Classes of Service.
-5. Creates Draft invoices in QBO.
-6. Generates an Excel spreadsheet for tracking purposes.
+## 🚀 Getting Started: The 5-Step Journey
 
-All you need to do is review and email out the invoices from QBO! (Well, and watch your receivables to be sure you get paid...)
+Follow these steps to get from zero to production:
 
-**System Requirements**: The billing application runs on any platform with Python 3.8+ (macOS, Linux, or Windows). The Zimbra server setup is Linux-only, as Zimbra runs on Linux.
+### **[Step 1: QuickBooks Developer Setup](1_QBO_DEVELOPER_SETUP.md)** ⏱️ 30-45 min
+Register for an Intuit Developer account, create an application, and set up a QuickBooks Sandbox company for testing.
+
+### **[Step 2: Zimbra Server Setup](2_ZIMBRA_SERVER_SETUP.md)** ⏱️ 20-30 min
+Install the usage report script on your Zimbra mailbox server to generate weekly billing data.
+
+### **[Step 3: Application Deployment](3_APPLICATION_DEPLOYMENT.md)** ⏱️ 1-2 hours
+Deploy the billing application on your workstation and test the complete workflow with QuickBooks Sandbox.
+
+### **[Step 4: Production Deployment](4_PRODUCTION_DEPLOYMENT.md)** ⏱️ 1-2 hours
+Get Production OAuth credentials, clean sandbox data, switch to your production QuickBooks, and create your first real invoices.
+
+### **[Step 5: Operator Guide](5_OPERATOR_GUIDE.md)** 📖 Reference
+Learn the monthly billing workflow and operational procedures for ongoing production use.
+
+---
+
+## 📚 Additional Documentation
+
+- **[PROJECT_REFERENCE.md](PROJECT_REFERENCE.md)** - Complete technical reference (architecture, features, commands)
+- **[5_USAGE.md](5_USAGE.md)** - Detailed command reference and usage examples
+- **[99_CODE_AUDIT.md](99_CODE_AUDIT.md)** - Code quality and security audit report
+
+---
 
 ## License
 
-The code is licensed under the MIT License for Open Source projects.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright 2025 Mission Critical Email LLC. All rights reserved.
+
+## For Zimbra Partners
+
+This application is open source and free to use, modify, and distribute for other Zimbra partners and users. Contributions are welcome!
 
 ## Contributing
 
-If you find any issues or have any suggestions for improvement, please send those along.
+If you find any issues or have suggestions for improvement, please open an issue on GitHub.
 
 Be kind; pay it forward.
 
 ---
 
-Hope that helps,
-
 **L. Mark Stone**
 Mark.Stone@MissionCriticalEmail.com
 Mission Critical Email, LLC
-20 October, 2025
+October 2025
