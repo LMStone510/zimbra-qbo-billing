@@ -1,5 +1,7 @@
 # Usage Guide
 
+**Version**: v1.13.0
+
 ## Command Syntax
 
 This guide uses `python -m src.ui.cli` for all commands, which works on all platforms without additional setup.

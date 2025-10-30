@@ -1,5 +1,7 @@
 # Zimbra-to-QuickBooks Billing Automation - Project Summary
 
+**Version**: v1.13.0
+
 ## Implementation Status
 
 ✅ **All 6 phases implemented and tested**

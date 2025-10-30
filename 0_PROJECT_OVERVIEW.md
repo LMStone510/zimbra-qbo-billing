@@ -1,5 +1,7 @@
 # Project Overview
 
+**Version**: v1.13.0
+
 Welcome! This guide explains what this project does and how it can help you automate Zimbra billing with QuickBooks Online.
 
 ## Goals

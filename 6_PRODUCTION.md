@@ -1,5 +1,7 @@
 # Switching to Production QuickBooks
 
+**Version**: v1.13.0
+
 > 📚 **New to this application?** See **3_SETUP_GUIDE.md** for the complete journey from initial installation through sandbox testing to production deployment.
 
 This guide focuses specifically on switching from QuickBooks Sandbox to your Production QuickBooks company.

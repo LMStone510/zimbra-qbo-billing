@@ -1,5 +1,7 @@
 # Quick Start Guide
 
+**Version**: v1.13.0
+
 **Current Status**: ✅ Fully configured, tested with QuickBooks Sandbox and used in production at Mission Critical Email
 
 ## Already Set Up

@@ -1,5 +1,7 @@
 # Zimbra-to-QuickBooks Billing Automation
 
+**Version**: v1.13.0
+
 **Status**: ✅ Fully operational, tested with QuickBooks Sandbox and used in production at Mission Critical Email
 
 **Platform Support**: macOS | Linux | Windows

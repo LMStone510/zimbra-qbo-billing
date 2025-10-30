@@ -1,5 +1,7 @@
 # Zimbra Server Setup (Linux Only)
 
+**Version**: v1.13.0
+
 This document describes how to set up the Zimbra mailbox server to generate weekly usage reports for billing.
 
 > **Note**: This setup is performed on your **Zimbra mailbox server**, which runs on Linux. The billing application itself (that processes these reports) can run on macOS, Linux, or Windows.

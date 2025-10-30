@@ -1,5 +1,7 @@
 # Complete Setup Guide: Sandbox to Production
 
+**Version**: v1.13.0
+
 This guide walks you through the entire process from initial installation, through sandbox testing, to production deployment.
 
 ## Platform Compatibility
