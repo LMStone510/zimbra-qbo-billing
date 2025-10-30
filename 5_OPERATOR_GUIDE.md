@@ -1,7 +1,14 @@
-# Zimbra-QBO Billing Operator Quick Reference
+# Step 5: Operator Guide - Monthly Billing Operations
 
 **Version**: v1.13.0
+
+**Goal**: Learn the monthly billing workflow and operational procedures for running the billing system in production.
+
 **Audience**: Billing staff and operations team
+
+**Prerequisites**:
+- ✅ Completed Steps 1-4: Application is deployed and running in production
+
 **Purpose**: Simple, step-by-step guide for monthly billing operations
 
 ---
