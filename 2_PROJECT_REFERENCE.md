@@ -1,4 +1,4 @@
-# Zimbra-to-QuickBooks Billing Automation
+# Zimbra-to-QuickBooks Billing Automation - Project Reference
 
 **Version**: v1.13.0
 
@@ -6,7 +6,7 @@
 
 **Platform Support**: macOS | Linux | Windows
 
-> 👋 **New here?** Start with **0_PROJECT_OVERVIEW.md** for a friendly introduction!
+> 👋 **New here?** Start with **README.md** for a friendly introduction!
 
 Automated monthly billing system that:
 - Fetches Zimbra email usage reports via SSH/SCP
@@ -14,6 +14,61 @@ Automated monthly billing system that:
 - Maps domains to QuickBooks Online customers
 - Generates draft invoices in QBO
 - Produces Excel summary reports
+
+---
+
+## Table of Contents
+
+1. [Implementation Status](#implementation-status)
+2. [Platform Compatibility](#platform-compatibility)
+3. [Quick Start](#quick-start)
+4. [Project Structure](#project-structure)
+5. [Implemented Features](#implemented-features)
+6. [Key Capabilities](#key-capabilities)
+7. [Database Schema](#database-schema)
+8. [Configuration](#configuration)
+9. [Common Commands](#common-commands)
+10. [Documentation Guide](#documentation-guide)
+11. [Security](#security)
+12. [Error Handling](#error-handling)
+13. [Switching to Production](#switching-to-production)
+14. [Important Notes](#important-notes)
+15. [License](#license)
+
+---
+
+## Implementation Status
+
+✅ **All 6 phases implemented and tested**
+✅ **Successfully tested with QuickBooks Sandbox**
+✅ **Currently in production at Mission Critical Email**
+
+### Test Results (March 2025)
+- Fetched 6 weekly reports from Zimbra
+- Parsed 87 domains with usage data
+- Calculated 151 highwater marks
+- Mapped 85 domains to customers
+- Mapped 31 CoS types to QuickBooks items
+- Generated 69 billable line items
+- Total billing: **$3,210.00**
+- Excel report generated successfully
+
+### Production Status
+
+✅ **Database cleaned and ready for production**:
+- All sandbox test data has been removed
+- All customer mappings cleared
+- All CoS mappings cleared
+- Ready for fresh production setup
+
+📋 **Previously Tested Successfully**:
+- Fetched reports from Zimbra via SSH
+- Parsed 87 domains with usage data
+- Interactive reconciliation workflow verified
+- Invoice generation tested
+- Excel reports generated with correct calculations
+
+---
 
 ## Platform Compatibility
 
@@ -23,6 +78,8 @@ This application is fully cross-platform:
 - ✅ **Windows** (10/11 with Python 3.8+)
 
 **Requirements**: Python 3.8+, pip3, SSH client, SSH keys for Zimbra access
+
+---
 
 ## Quick Start
 
@@ -67,6 +124,8 @@ python3 -m src.ui.cli run-monthly-billing --year 2025 --month 3
 # Generate report without creating invoices (recommended first time)
 python3 -m src.ui.cli run-monthly-billing --year 2025 --month 3 --skip-invoices
 ```
+
+---
 
 ## Project Structure
 
@@ -129,16 +188,88 @@ invoicing/
 ├── setup.py                          # Python package setup
 ├── requirements.txt                  # Python dependencies
 ├── LICENSE                           # MIT License
-├── 0_PROJECT_OVERVIEW.md             # Friendly introduction
+├── README.md                         # Project overview
 ├── 1_ZIMBRA_SERVER_SETUP.md          # Zimbra server setup guide
-├── 2_README.md                       # This file - quick reference
+├── 2_PROJECT_REFERENCE.md            # This file - complete reference
 ├── 3_SETUP_GUIDE.md                  # Complete setup guide
 ├── 4_QUICKSTART.md                   # 5-minute quick start
 ├── 5_USAGE.md                        # Detailed usage guide
 ├── 6_PRODUCTION.md                   # Production setup guide
-├── 7_PROJECT_SUMMARY.md              # Technical architecture
-└── OPERATOR_GUIDE.md                 # Operational procedures
+├── 8_OPERATOR_GUIDE.md               # Operational procedures
+└── 99_CODE_AUDIT.md                  # Code audit report
 ```
+
+---
+
+## Implemented Features
+
+### Phase 1: Foundation ✅
+- **Configuration Management** - Supports config file, environment variables, and defaults
+- **Database Models** - Complete SQLAlchemy schema with 11 tables
+- **Database Migrations** - Initialization, backup, and default data loading
+- **Query Helpers** - Comprehensive database query utilities
+
+### Phase 2: Zimbra Integration ✅
+- **SSH/SCP Fetcher** - Connects to Zimbra server and downloads reports
+- **Report Parser** - Parses weekly usage reports, extracts domains/CoS/counts
+- **High-water Calculator** - Computes monthly maximum usage per domain/CoS
+- **Exclusion Support** - Filter out non-billable items
+
+### Phase 3: Reconciliation Engine ✅
+- **Change Detector** - Identifies new domains, missing domains, new CoS
+- **Interactive Prompter** - User-friendly CLI prompts for decisions
+- **Mapping Manager** - Maintains domain→customer and CoS→QBO item mappings
+- **History Tracking** - Logs all changes and user decisions
+
+### Phase 4: QuickBooks Online ✅
+- **OAuth2 Authentication** - Secure token storage with encryption
+- **QBO API Client** - Wrapper for customer, item, and invoice operations
+- **Invoice Generator** - Creates invoices from usage data
+- **Rate Limiting** - Prevents API throttling
+
+### Phase 5: Reporting & UI ✅
+- **Excel Reports** - Multi-sheet reports with summary, details, and breakdowns
+- **CLI Interface** - 10+ commands for all operations
+- **Progress Indicators** - Clear feedback during operations
+- **Error Handling** - Comprehensive error messages
+
+### Phase 6: Main Orchestration ✅
+- **Monthly Workflow** - Complete end-to-end automation
+- **Step-by-Step Process** - Fetch → Parse → Reconcile → Invoice → Report
+- **Flexible Execution** - Skip steps as needed
+- **Summary Display** - Clear billing summary
+
+---
+
+## Key Capabilities
+
+1. **Automated Report Fetching** - SSH into Zimbra server and download reports
+2. **Intelligent Parsing** - Extract domains, CoS, and account counts
+3. **High-water Billing** - Calculate maximum monthly usage per domain/CoS
+4. **Smart Reconciliation** - Detect and handle new/missing domains and CoS
+5. **QBO Integration** - Create draft invoices with proper line items
+6. **Excel Reporting** - Professional multi-sheet billing reports
+7. **Audit Trail** - Complete change log and history tracking
+8. **Exclusion Patterns** - Flexible filtering of non-billable items
+
+---
+
+## Database Schema
+
+11 tables with comprehensive relationships:
+- `customers` - QBO customer records
+- `domains` - Domain to customer mappings
+- `exclusions` - Exclusion patterns
+- `cos_mappings` - CoS to QBO item mappings with pricing
+- `usage_data` - Raw weekly usage data
+- `monthly_highwater` - Calculated monthly maximums
+- `invoice_history` - Generated invoice tracking
+- `customer_settings` - Per-customer preferences
+- `domain_history` - Domain change history
+- `cos_discovery` - New CoS tracking
+- `change_log` - Audit log
+
+---
 
 ## Configuration
 
@@ -162,11 +293,11 @@ QBO_SANDBOX=true  # Set to false for production
 DATABASE_PATH=data/billing.db
 ```
 
-## Switching to Production
-
-See **3_SETUP_GUIDE.md** for the complete process, or **6_PRODUCTION.md** for production-specific details.
+---
 
 ## Common Commands
+
+### Main Commands
 
 ```bash
 # Monthly billing (full workflow)
@@ -189,45 +320,67 @@ python3 -m src.ui.cli test-connections
 python3 -m src.ui.cli sync-customers
 ```
 
-## Documentation
+### Setup Commands
 
-Read in order:
+```bash
+# Initialize database
+python3 -m src.ui.cli init-db
 
-0. **0_PROJECT_OVERVIEW.md** - 👋 **Start here!** Friendly introduction from Mark
-1. **1_ZIMBRA_SERVER_SETUP.md** - 🔧 Set up Zimbra server first
-2. **2_README.md** (this file) - Quick reference and overview
-3. **3_SETUP_GUIDE.md** - 📚 Complete guide from sandbox to production
-4. **4_QUICKSTART.md** - 5-minute setup guide
-5. **5_USAGE.md** - Detailed usage documentation
-6. **6_PRODUCTION.md** - Production-specific setup instructions
-7. **7_PROJECT_SUMMARY.md** - Technical architecture and features
+# Authorize QuickBooks (opens browser)
+python3 -m src.ui.cli authorize-qbo
 
-## Current Status
+# Import customers from QBO
+python3 -m src.ui.cli sync-customers
 
-✅ **Application fully functional and tested with QuickBooks Sandbox**
+# Test all connections
+python3 -m src.ui.cli test-connections
+```
 
-✅ **Database cleaned and ready for production**:
-- All sandbox test data has been removed
-- All customer mappings cleared
-- All CoS mappings cleared
-- Ready for fresh production setup
+---
 
-📋 **Previously Tested Successfully**:
-- Fetched reports from Zimbra via SSH
-- Parsed 87 domains with usage data
-- Interactive reconciliation workflow verified
-- Invoice generation tested
-- Excel reports generated with correct calculations
+## Documentation Guide
 
-🚀 **Ready to switch to production** - See **PRODUCTION.md** for step-by-step instructions
+Read in the recommended order:
 
-## Switching to Production QuickBooks
+1. **README.md** - 👋 **Start here!** Friendly introduction
+2. **1_ZIMBRA_SERVER_SETUP.md** - 🔧 Set up Zimbra server first (required!)
+3. **2_PROJECT_REFERENCE.md** - This file - Complete technical reference
+4. **3_SETUP_GUIDE.md** - 📚 Complete guide from sandbox to production
+5. **4_QUICKSTART.md** - 5-minute setup guide
+6. **5_USAGE.md** - Detailed usage documentation
+7. **6_PRODUCTION.md** - Production-specific setup instructions
+8. **8_OPERATOR_GUIDE.md** - Operational procedures for billing staff
+9. **99_CODE_AUDIT.md** - Code quality audit report
 
-### Prerequisites
-1. Backup your configuration: `cp .env .env.sandbox-backup`
-2. You'll need your **Production** QuickBooks Company ID
+---
 
-### Steps to Switch
+## Security
+
+- **OAuth2 Token Encryption** - Tokens encrypted at rest using Fernet encryption
+- **SSH Key Authentication** - Passwordless access to Zimbra server
+- **Restrictive Permissions** - Sensitive files have secure permissions
+- **No Hardcoded Credentials** - All credentials in environment/config files
+- **Masked Logging** - Credentials never appear in logs
+- **Environment Variables** - Support for secure secret management
+
+---
+
+## Error Handling
+
+- **Comprehensive Exception Handling** - Throughout all modules
+- **Graceful Degradation** - Continue processing on single item failures
+- **Detailed Logging** - Debug mode available for troubleshooting
+- **Transaction Rollback** - Database integrity maintained on errors
+- **User-Friendly Messages** - Clear error reporting to users
+- **Retry Logic** - Automatic retry for transient failures
+
+---
+
+## Switching to Production
+
+See **6_PRODUCTION.md** for complete production deployment guide.
+
+### Quick Production Switch
 
 1. **Clean all sandbox data**:
    ```bash
@@ -246,67 +399,29 @@ Read in order:
    "
    ```
 
-   This removes all sandbox test data so you start fresh with production.
-
 2. **Update `.env` file**:
-   ```bash
-   nano .env
-   ```
-
-   Change these two lines:
    ```bash
    QBO_COMPANY_ID=<your-production-company-id>
    QBO_SANDBOX=false
    ```
 
-3. **Clear sandbox authorization**:
+3. **Clear sandbox authorization and re-authorize**:
    ```bash
    rm data/qbo_tokens.enc
-   ```
-
-4. **Re-authorize with Production**:
-   ```bash
    python3 -m src.ui.cli authorize-qbo
    ```
 
-   This will open your browser. Make sure you:
-   - Select your **PRODUCTION** QuickBooks company (not sandbox)
-   - Complete authorization immediately (don't wait)
-
-5. **Sync production customers**:
+4. **Sync production customers**:
    ```bash
    python3 -m src.ui.cli sync-customers
    ```
 
-   This will import your real production customers into the clean database.
-
-6. **Test connection**:
+5. **Test connection**:
    ```bash
    python3 -m src.ui.cli test-connections
    ```
 
-   Verify it says "Environment: PRODUCTION"
-
-7. **Run first production billing**:
-   ```bash
-   python3 -m src.ui.cli run-monthly-billing --year 2025 --month 3
-   ```
-
-   This will:
-   - Fetch Zimbra reports
-   - Prompt you to map domains to production customers
-   - Prompt you to map CoS to production items
-   - Generate report (use --skip-invoices first time to verify)
-
-8. **Review and create invoices**:
-   Once you're satisfied with the test report:
-   ```bash
-   python3 -m src.ui.cli run-monthly-billing --year 2025 --month 3 --skip-fetch --skip-reconciliation
-   ```
-
 ### Finding Your Production Company ID
-
-Two methods:
 
 **Method 1: From QuickBooks URL**
 1. Log into QuickBooks Online
@@ -317,45 +432,7 @@ Two methods:
 1. Run `authorize-qbo` command
 2. The Company ID is displayed after successful authorization
 
-### Reverting to Sandbox
-
-If you need to go back to sandbox for testing:
-
-```bash
-# 1. Clean production data
-sqlite3 data/billing.db "
-DELETE FROM invoice_history;
-DELETE FROM customer_settings;
-DELETE FROM domain_history;
-DELETE FROM monthly_highwater;
-DELETE FROM usage_data;
-DELETE FROM cos_discovery;
-DELETE FROM domains;
-DELETE FROM cos_mappings;
-DELETE FROM customers;
-DELETE FROM exclusions;
-DELETE FROM change_log;
-"
-
-# 2. Restore sandbox config
-cp .env.sandbox-backup .env
-
-# Or manually update .env:
-# QBO_SANDBOX=true
-# QBO_COMPANY_ID=<your-sandbox-company-id>
-
-# 3. Clear production tokens
-rm data/qbo_tokens.enc
-
-# 4. Re-authorize with sandbox
-python3 -m src.ui.cli authorize-qbo
-# Select SANDBOX company during auth
-
-# 5. Sync sandbox customers
-python3 -m src.ui.cli sync-customers
-```
-
-**Important**: Always clean the database when switching between sandbox and production to avoid mixing test and real data.
+---
 
 ## Important Notes
 
@@ -364,6 +441,42 @@ python3 -m src.ui.cli sync-customers
 3. **Test with --skip-invoices** - Generate reports without creating invoices for testing
 4. **OAuth tokens expire** - Tokens auto-refresh for 101 days, then require re-authorization
 5. **CoS mapping** - Many CoS types need mapping. Run reconciliation to complete mappings
+6. **Database cleanup** - Always clean the database when switching between sandbox and production
+
+---
+
+## Architecture Highlights
+
+- **Separation of Concerns** - Clear module boundaries
+- **Database-Driven** - All state in SQLite
+- **Interactive Where Needed** - Prompts for important decisions
+- **Automation-Friendly** - Can run fully unattended
+- **Audit Trail** - Complete history of all operations
+- **Production Ready** - Error handling, logging, testing
+
+---
+
+## Dependencies
+
+- `paramiko` - SSH/SCP for Zimbra
+- `sqlalchemy` - Database ORM
+- `python-quickbooks` - QBO API
+- `openpyxl` - Excel generation
+- `click` - CLI framework
+- `cryptography` - Token encryption
+- `requests-oauthlib` - OAuth2
+
+---
+
+## Extensibility
+
+The modular design allows easy extension:
+- Add new report formats (extend parser)
+- Support additional billing rules (modify calculator)
+- Integrate other accounting systems (follow QBO pattern)
+- Add web UI (import main workflow functions)
+
+---
 
 ## License
 
