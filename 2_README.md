@@ -88,6 +88,7 @@ invoicing/
 │   │   ├── __init__.py
 │   │   ├── auth.py                   # OAuth 2.0 authentication
 │   │   ├── client.py                 # QBO API client wrapper
+│   │   ├── errors.py                 # QBO error handling
 │   │   └── invoice.py                # Invoice creation logic
 │   ├── reconciliation/               # Domain/CoS reconciliation
 │   │   ├── __init__.py
@@ -109,11 +110,16 @@ invoicing/
 │   ├── qbo_tokens.enc                # Encrypted OAuth tokens
 │   ├── logs/                         # Application logs
 │   └── billing_report_*.xlsx         # Generated Excel reports
-├── scripts/                          # Zimbra server scripts
+├── scripts/                          # Zimbra and utility scripts
 │   ├── MonthlyBillingByDomain-v6.sh  # Usage report script
+│   ├── compare_june_invoices.sh      # Invoice comparison tool
+│   ├── prepare_june_retest.sh        # Test preparation script
 │   └── README.md                     # Script documentation
 ├── tests/                            # Test suite
 │   ├── test_parser.py                # Parser unit tests
+│   ├── test_money_precision.py       # Money precision tests
+│   ├── test_qbo_errors.py            # QBO error handling tests
+│   ├── test_query_escaping.py        # SQL query escaping tests
 │   ├── generate_sample_data.py       # Test data generator
 │   └── sample_data/                  # Sample Zimbra reports
 ├── .env                              # Environment configuration (primary)
@@ -129,13 +135,7 @@ invoicing/
 ├── 5_USAGE.md                        # Detailed usage guide
 ├── 6_PRODUCTION.md                   # Production setup guide
 ├── 7_PROJECT_SUMMARY.md              # Technical architecture
-├── 8_CODE_REVIEW_REPORT_1.12.2.md    # Code review findings
-├── GITHUB_SETUP.md                   # GitHub repository setup
-├── GITHUB_CHECKLIST.md               # GitHub pre-publish checklist
-├── RELEASE_CHECKLIST.md              # Release preparation checklist
-├── MIGRATION_GUIDE.md                # Version migration guide
-├── OPERATOR_GUIDE.md                 # Operational procedures
-└── RECOMMENDATIONS.md                # Future enhancements
+└── OPERATOR_GUIDE.md                 # Operational procedures
 ```
 
 ## Configuration
