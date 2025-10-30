@@ -289,48 +289,51 @@ Parsing usage reports...
 You'll be prompted to map each domain to a QuickBooks customer:
 
 ```
-New domain detected: acme-corp.com
+New domain found: acme-corp.com
 
-Select customer:
- [1] Acme Corporation
- [2] Acme Industries
- [3] Acme LLC
- [4] <<Create New Customer>>
- [5] <<Skip This Domain>>
+Available customers:
+  0: Skip (don't assign)
+  1: Acme Corporation (QBO ID: 123)
+  2: Acme Industries (QBO ID: 456)
+  3: Acme LLC (QBO ID: 789)
 
-Choice (1-5): 1
+Select customer number [0]: 1
 
-✓ Mapped: acme-corp.com → Acme Corporation
+✓ Assigned acme-corp.com to Acme Corporation
 ```
 
 **Tips:**
 - Type the number and press Enter
-- Choose option 4 to create a new customer (opens QuickBooks in browser)
-- Choose option 5 to skip non-billable domains
+- Choose 0 to skip non-billable domains
+- Choose a customer number (1, 2, 3...) to assign the domain
 - Mappings are saved - you won't be asked again for this domain
+- You can manually add new customers in QuickBooks before or during billing
 
 **[4/6] CoS Reconciliation** (Interactive)
 
 You'll be prompted to map each Class of Service to a QuickBooks item:
 
 ```
-New CoS detected: customer-50gb
+New Class of Service found: customer-50gb
+Detected quota: 50 GB
 
-Select QuickBooks item:
- [1] Email Hosting - 50GB Mailbox ($15.00)
- [2] Email Hosting - 25GB Mailbox ($10.00)
- [3] <<Skip This CoS>>
+Available QuickBooks items:
+  0: Skip (don't map)
+  1: Email Hosting - 50GB Mailbox (Current QBO price: $15.00)
+  2: Email Hosting - 25GB Mailbox (Current QBO price: $10.00)
+  3: Email Hosting - 10GB Mailbox (Current QBO price: $8.00)
 
-Choice (1-3): 1
+Select QBO item number [0]: 1
 
-✓ Mapped: customer-50gb → Email Hosting - 50GB Mailbox
-  Price: $15.00 per mailbox per month
+✓ Mapped customer-50gb to Email Hosting - 50GB Mailbox ($15.00 per mailbox)
 ```
 
 **Tips:**
 - Match CoS names to the appropriate QuickBooks service items
 - The price shown is what you configured in QuickBooks (Step 1)
+- Choose 0 to skip test/internal CoS types
 - Mappings are saved for future months
+- The system tries to detect quota sizes to help you choose
 
 **[5/6] Generating Report**
 ```

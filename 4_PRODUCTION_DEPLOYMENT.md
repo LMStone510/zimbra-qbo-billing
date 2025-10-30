@@ -353,42 +353,41 @@ Parsing usage reports...
 You'll map each domain to a PRODUCTION customer:
 
 ```
-New domain: acme-corp.com
+New domain found: acme-corp.com
 
-Select customer:
- [1] ACME Corporation
- [2] Acme Industries LLC
- [3] Acme Enterprises
- [4] <<Create New Customer>>
- [5] <<Skip This Domain>>
+Available customers:
+  0: Skip (don't assign)
+  1: ACME Corporation (QBO ID: 12345)
+  2: Acme Industries LLC (QBO ID: 12346)
+  3: Acme Enterprises (QBO ID: 12347)
 
-Choice (1-5): 1
+Select customer number [0]: 1
 
-✓ Mapped: acme-corp.com → ACME Corporation
+✓ Assigned acme-corp.com to ACME Corporation
 ```
 
 **Important Tips:**
 - Choose carefully - these are your REAL customers
-- Option 4 opens QuickBooks to create a new customer
-- Option 5 skips non-billable domains
+- Choose 0 to skip non-billable domains
 - Mappings are permanent (can be changed later if needed)
+- Add new customers in QuickBooks first if they don't exist in the list
 
 ### [4/6] CoS Reconciliation (Interactive)
 
 You'll map each CoS to a PRODUCTION service item:
 
 ```
-New CoS: customer-50gb
+New Class of Service found: customer-50gb
+Detected quota: 50 GB
 
-Select QuickBooks item:
- [1] Email Hosting - 50GB Mailbox ($15.00)
- [2] Email Hosting - 25GB Mailbox ($10.00)
- [3] <<Skip This CoS>>
+Available QuickBooks items:
+  0: Skip (don't map)
+  1: Email Hosting - 50GB Mailbox (Current QBO price: $15.00)
+  2: Email Hosting - 25GB Mailbox (Current QBO price: $10.00)
 
-Choice (1-3): 1
+Select QBO item number [0]: 1
 
-✓ Mapped: customer-50gb → Email Hosting - 50GB Mailbox
-  Price: $15.00 per mailbox
+✓ Mapped customer-50gb to Email Hosting - 50GB Mailbox ($15.00 per mailbox)
 ```
 
 ### [5/6] Generating Report
