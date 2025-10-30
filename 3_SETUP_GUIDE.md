@@ -995,8 +995,14 @@ Used for exclusion patterns - same for both sandbox and production:
 ```json
 {
   "exclusions": {
-    "domains": ["*.test", "*-archive"],
-    "cos_patterns": ["*-test", "*-trial"]
+    "domains": [
+      "*.test",
+      "*-archive"
+    ],
+    "cos_patterns": [
+      "*-test",
+      "*-trial"
+    ]
   }
 }
 ```
