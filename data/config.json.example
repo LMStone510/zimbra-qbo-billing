@@ -10,7 +10,7 @@
     "sandbox": true,
     "client_id": "YOUR_QBO_CLIENT_ID",
     "client_secret": "YOUR_QBO_CLIENT_SECRET",
-    "redirect_uri": "http://localhost:8080/callback",
+    "redirect_uri": "https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl",
     "company_id": "YOUR_QBO_COMPANY_ID"
   },
   "database": {

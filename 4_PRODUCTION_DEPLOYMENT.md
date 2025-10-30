@@ -85,7 +85,7 @@ Once approved:
 3. **Copy Production Credentials**:
    - **Production Client ID**: Copy and save securely
    - **Production Client Secret**: Click "Show", then copy and save
-   - **Redirect URI**: Should still be `http://localhost:8080/callback`
+   - **Redirect URI**: Should still be `https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl`
 
 **⚠️ IMPORTANT**: Production credentials are different from Development credentials. Keep them secure!
 
@@ -202,7 +202,7 @@ nano .env
 # QuickBooks Online Configuration - PRODUCTION
 QBO_CLIENT_ID=<your-PRODUCTION-client-id>
 QBO_CLIENT_SECRET=<your-PRODUCTION-client-secret>
-QBO_REDIRECT_URI=http://localhost:8080/callback
+QBO_REDIRECT_URI=https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl
 QBO_COMPANY_ID=<your-production-company-id>
 QBO_SANDBOX=false
 ```

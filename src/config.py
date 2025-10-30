@@ -77,7 +77,7 @@ class Config:
                 "sandbox": True,
                 "client_id": "",
                 "client_secret": "",
-                "redirect_uri": "http://localhost:8080/callback",
+                "redirect_uri": "https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl",
                 "company_id": ""
             },
             "database": {

@@ -285,7 +285,7 @@ ZIMBRA_REPORT_PATH=/opt/MonthlyUsageReports
 # QuickBooks Online Configuration
 QBO_CLIENT_ID=<your-client-id>
 QBO_CLIENT_SECRET=<your-client-secret>
-QBO_REDIRECT_URI=http://localhost:8080/callback
+QBO_REDIRECT_URI=https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl
 QBO_COMPANY_ID=<your-company-id>
 QBO_SANDBOX=true  # Set to false for production
 

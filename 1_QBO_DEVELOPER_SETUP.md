@@ -80,9 +80,9 @@ On the **Keys & credentials** page, you'll see two sections: **Development** and
 
 3. **Redirect URIs**
    - Click **"Add URI"**
-   - Enter: `http://localhost:8080/callback`
+   - Enter: `https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl`
    - Click **"Save"**
-   - This allows the application to receive OAuth responses on your local machine
+   - This is Intuit's OAuth2 Playground redirect URL that works reliably for desktop applications
 
 ---
 
@@ -221,7 +221,7 @@ You now have all the credentials needed for sandbox testing. Save these securely
 **From Intuit Developer Portal:**
 - ✅ **Development Client ID**: `ABcd1234EFgh5678IJkl9012MNop3456QRst7890`
 - ✅ **Development Client Secret**: `xyz789abc123def456ghi789`
-- ✅ **Redirect URI**: `http://localhost:8080/callback`
+- ✅ **Redirect URI**: `https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl`
 - ✅ **Sandbox Company ID (Realm ID)**: `1234567890123456`
 
 **You'll use these in Step 3** when deploying the billing application.
@@ -268,9 +268,10 @@ You don't need production keys yet, but here's how to get them when you're ready
 ### Redirect URI Not Working
 
 **Problem**: OAuth callback fails with "redirect_uri mismatch"
-- **Solution**: Ensure `http://localhost:8080/callback` is added to your app
+- **Solution**: Ensure `https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl` is added to your app
 - **Solution**: Verify it's saved (must click "Save" button)
-- **Solution**: Match exactly - no trailing slash, no https
+- **Solution**: Match exactly - include https, no trailing slash
+- **Note**: `localhost` URLs don't work reliably - use Intuit's OAuth2 Playground URL
 
 ### Can't Find Company ID
 
@@ -296,7 +297,7 @@ Before proceeding to Step 2, ensure you have:
 - [ ] Created an application in the developer portal
 - [ ] Obtained your Development Client ID
 - [ ] Obtained your Development Client Secret
-- [ ] Added redirect URI: `http://localhost:8080/callback`
+- [ ] Added redirect URI: `https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl`
 - [ ] Created a QuickBooks Sandbox company
 - [ ] Noted your Sandbox Company ID (Realm ID)
 - [ ] Added service items to sandbox company for your CoS types
