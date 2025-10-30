@@ -307,7 +307,7 @@ After completing this setup:
 
 1. ✅ Verify reports are being generated weekly
 2. ✅ Test SSH access from billing server
-3. ✅ Run the billing application (see 3_SETUP_GUIDE.md)
+3. ✅ Run the billing application (see 3_APPLICATION_DEPLOYMENT.md)
 4. ✅ Configure domain and CoS mappings
 5. ✅ Generate your first billing report
 

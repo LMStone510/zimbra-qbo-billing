@@ -1,6 +1,8 @@
-# Usage Guide
+# Command Reference
 
 **Version**: v1.13.0
+
+Complete reference for all billing system commands and usage examples.
 
 ## Command Syntax
 

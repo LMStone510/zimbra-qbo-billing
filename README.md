@@ -51,8 +51,8 @@ Learn the monthly billing workflow and operational procedures for ongoing produc
 
 ## 📚 Additional Documentation
 
-- **[PROJECT_REFERENCE.md](PROJECT_REFERENCE.md)** - Complete technical reference (architecture, features, commands)
-- **[5_USAGE.md](5_USAGE.md)** - Detailed command reference and usage examples
+- **[COMMAND_REFERENCE.md](COMMAND_REFERENCE.md)** - Complete command reference and usage examples
+- **[PROJECT_REFERENCE.md](PROJECT_REFERENCE.md)** - Technical architecture and features
 - **[99_CODE_AUDIT.md](99_CODE_AUDIT.md)** - Code quality and security audit report
 
 ---

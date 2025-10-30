@@ -418,12 +418,12 @@ Use this each month:
 1. Review error messages in terminal
 2. Check logs: `tail -f data/logs/*.log`
 3. Review this guide
-4. Check `5_USAGE.md` for detailed commands
+4. Check `COMMAND_REFERENCE.md` for detailed commands
 
 **Documentation:**
-- `5_USAGE.md` - Complete usage guide
-- `6_PRODUCTION.md` - Production setup details
-- `3_SETUP_GUIDE.md` - Initial setup
+- `COMMAND_REFERENCE.md` - Complete command reference
+- `4_PRODUCTION_DEPLOYMENT.md` - Production setup details
+- `3_APPLICATION_DEPLOYMENT.md` - Initial application deployment
 - `MIGRATION_GUIDE.md` - Database changes
 
 **Emergency Contact:**

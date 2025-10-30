@@ -189,13 +189,13 @@ invoicing/
 ├── requirements.txt                  # Python dependencies
 ├── LICENSE                           # MIT License
 ├── README.md                         # Project overview
-├── 1_ZIMBRA_SERVER_SETUP.md          # Zimbra server setup guide
-├── 2_PROJECT_REFERENCE.md            # This file - complete reference
-├── 3_SETUP_GUIDE.md                  # Complete setup guide
-├── 4_QUICKSTART.md                   # 5-minute quick start
-├── 5_USAGE.md                        # Detailed usage guide
-├── 6_PRODUCTION.md                   # Production setup guide
-├── 8_OPERATOR_GUIDE.md               # Operational procedures
+├── 1_QBO_DEVELOPER_SETUP.md          # QuickBooks Developer setup
+├── 2_ZIMBRA_SERVER_SETUP.md          # Zimbra server setup guide
+├── 3_APPLICATION_DEPLOYMENT.md       # Application deployment
+├── 4_PRODUCTION_DEPLOYMENT.md        # Production deployment
+├── 5_OPERATOR_GUIDE.md               # Operational procedures
+├── COMMAND_REFERENCE.md              # Command reference
+├── PROJECT_REFERENCE.md              # This file - technical reference
 └── 99_CODE_AUDIT.md                  # Code audit report
 ```
 
@@ -340,17 +340,19 @@ python3 -m src.ui.cli test-connections
 
 ## Documentation Guide
 
-Read in the recommended order:
+Follow the 5-step journey:
 
-1. **README.md** - 👋 **Start here!** Friendly introduction
-2. **1_ZIMBRA_SERVER_SETUP.md** - 🔧 Set up Zimbra server first (required!)
-3. **2_PROJECT_REFERENCE.md** - This file - Complete technical reference
-4. **3_SETUP_GUIDE.md** - 📚 Complete guide from sandbox to production
-5. **4_QUICKSTART.md** - 5-minute setup guide
-6. **5_USAGE.md** - Detailed usage documentation
-7. **6_PRODUCTION.md** - Production-specific setup instructions
-8. **8_OPERATOR_GUIDE.md** - Operational procedures for billing staff
-9. **99_CODE_AUDIT.md** - Code quality audit report
+1. **README.md** - 👋 **Start here!** Overview and journey map
+2. **1_QBO_DEVELOPER_SETUP.md** - Step 1: QuickBooks Developer setup
+3. **2_ZIMBRA_SERVER_SETUP.md** - Step 2: Zimbra server setup
+4. **3_APPLICATION_DEPLOYMENT.md** - Step 3: Application deployment and sandbox testing
+5. **4_PRODUCTION_DEPLOYMENT.md** - Step 4: Production deployment
+6. **5_OPERATOR_GUIDE.md** - Step 5: Monthly operations
+
+**Reference Documents:**
+- **COMMAND_REFERENCE.md** - Detailed command reference
+- **PROJECT_REFERENCE.md** - This file - Technical architecture
+- **99_CODE_AUDIT.md** - Code quality audit report
 
 ---
 
@@ -378,7 +380,7 @@ Read in the recommended order:
 
 ## Switching to Production
 
-See **6_PRODUCTION.md** for complete production deployment guide.
+See **4_PRODUCTION_DEPLOYMENT.md** for complete production deployment guide.
 
 ### Quick Production Switch
 
