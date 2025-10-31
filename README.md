@@ -4,7 +4,7 @@
 
 **Status**: ✅ Production-ready, tested with QuickBooks Sandbox and used in production at Mission Critical Email
 
-Welcome! This is an automated monthly billing system for Zimbra BSPs (Bulk Service Providers) using QuickBooks Online.
+Welcome! This is an automated monthly billing system for Zimbra Hosting Partners ("BSPs") who use QuickBooks Online.
 
 ## What This Does
 
