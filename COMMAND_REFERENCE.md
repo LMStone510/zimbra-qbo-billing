@@ -2,7 +2,7 @@
 
 **Version**: v1.13.0
 
-Complete reference for all billing system commands and usage examples.
+Complete reference for all billing system commands and their options.
 
 ## Command Syntax
 
@@ -22,107 +22,245 @@ zimbra-billing run-monthly-billing --year 2025 --month 10
 
 All examples below use `python -m src.ui.cli` for consistency.
 
-## Initial Setup
+## Prerequisites
 
-### 1. Install Dependencies
+Before using these commands, ensure you have completed:
+1. Application installation and configuration (see `3_APPLICATION_DEPLOYMENT.md`)
+2. QuickBooks authorization (`authorize-qbo`)
+3. Customer synchronization (`sync-customers`)
 
-```bash
-pip install -r requirements.txt
-```
+For detailed setup instructions, see the numbered deployment guides in the repository.
 
-### 2. Configure Application
+## Core Commands
 
-Copy the example configuration:
+### `init-db`
+Initialize or reset the database.
 
-```bash
-cp data/config.json.example data/config.json
-```
-
-Edit `data/config.json` with your settings:
-- Zimbra SSH credentials and server details
-- QuickBooks Online API credentials
-- Exclusion patterns
-
-Or use environment variables (see `.env.example`):
-
-```bash
-cp .env.example .env
-# Edit .env with your credentials
-```
-
-### 3. Initialize Database
-
+**Usage:**
 ```bash
 python -m src.ui.cli init-db
 ```
 
-### 4. Authorize QuickBooks Online
+**Description:** Creates the database schema and tables. WARNING: Destroys existing data if run on an existing database.
 
+---
+
+### `authorize-qbo`
+Authorize QuickBooks Online access via OAuth.
+
+**Usage:**
 ```bash
 python -m src.ui.cli authorize-qbo
 ```
 
-This will open your browser for OAuth authorization.
+**Description:** Opens a browser window for OAuth authorization. Must be completed within the authorization window (typically 5 minutes). Tokens are encrypted and stored in `data/qbo_tokens.enc`.
 
-### 5. Sync Customers
+---
 
+### `sync-customers`
+Synchronize QuickBooks customers to local database.
+
+**Usage:**
 ```bash
 python -m src.ui.cli sync-customers
 ```
 
-This imports your QBO customers into the local database.
+**Description:** Imports all active customers from QuickBooks Online into the local database. Must be run before first billing cycle and whenever new customers are added in QBO.
 
-### 6. Test Connections
+---
 
+### `test-connections`
+Test all system connections.
+
+**Usage:**
 ```bash
 python -m src.ui.cli test-connections
 ```
 
-## Monthly Billing Workflow
+**Description:** Verifies connectivity to:
+- Zimbra server (SSH)
+- QuickBooks Online (OAuth)
+- Local database
 
-### Full Automated Run (Interactive)
+---
+
+### `reconcile-domains`
+Manually assign domains to customers.
+
+**Usage:**
+```bash
+python -m src.ui.cli reconcile-domains
+```
+
+**Description:** Interactive tool to map Zimbra domains to QuickBooks customers. Shows unmapped domains and prompts for customer assignment.
+
+---
+
+### `reconcile-cos`
+Manually map Class of Service to QuickBooks items.
+
+**Usage:**
+```bash
+python -m src.ui.cli reconcile-cos [--review-all]
+```
+
+**Options:**
+- `--review-all` - Review all existing CoS mappings, not just unmapped ones
+
+**Description:** Interactive tool to map Zimbra CoS (e.g., "customer-25gb") to QuickBooks service items (e.g., "25GB Mailbox"). System attempts to detect quota sizes to suggest appropriate items.
+
+---
+
+### `generate-report`
+Generate Excel billing report without creating invoices.
+
+**Usage:**
+```bash
+python -m src.ui.cli generate-report --year YYYY --month MM
+```
+
+**Required Options:**
+- `--year YYYY` - Billing year (e.g., 2025)
+- `--month MM` - Billing month (1-12)
+
+**Description:** Fetches Zimbra data, calculates usage, and generates Excel report in `data/billing_report_YYYY_MM_*.xlsx`. Does not create QuickBooks invoices.
+
+---
+
+### `preview-invoices`
+Preview invoices without creating them in QuickBooks.
+
+**Usage:**
+```bash
+python -m src.ui.cli preview-invoices --year YYYY --month MM [--customer-id ID]
+```
+
+**Required Options:**
+- `--year YYYY` - Billing year
+- `--month MM` - Billing month (1-12)
+
+**Optional:**
+- `--customer-id ID` - Preview single customer only
+
+**Description:** Shows what invoices would be created, including line items, quantities, and amounts. No data is written to QuickBooks.
+
+---
+
+### `run-monthly-billing`
+Run complete monthly billing workflow.
+
+**Usage:**
+```bash
+python -m src.ui.cli run-monthly-billing [OPTIONS]
+```
+
+**Required Options:**
+- `--year YYYY` - Billing year (default: current year)
+- `--month MM` - Billing month (default: previous month)
+
+**Workflow Control:**
+- `--skip-fetch` - Skip fetching Zimbra reports (use cached data)
+- `--skip-reconciliation` - Skip domain/CoS reconciliation prompts
+- `--skip-invoices` - Skip invoice creation (report only)
+
+**Automation:**
+- `--non-interactive` - Run without prompts (safe for cron/schedulers)
+- `--json-output PATH` - Write machine-readable summary to file
+- `--draft` - Create draft invoices (default: true)
+
+**Global:**
+- `--debug` - Enable debug logging
+- `--config PATH` - Use custom config file
+
+**Description:** Complete workflow that:
+1. Fetches Zimbra usage reports via SSH
+2. Parses and calculates monthly high-water marks
+3. Reconciles unmapped domains/CoS (interactive or auto-skip)
+4. Generates draft invoices in QuickBooks
+5. Creates Excel report
+
+**Idempotency:** Safe to re-run. Automatically detects and skips existing invoices for the same billing period.
+
+**Examples:**
 
 ```bash
+# Interactive run (first time)
 python -m src.ui.cli run-monthly-billing --year 2025 --month 10
+
+# Generate report only (no invoices)
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --skip-invoices
+
+# Re-run with cached data
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --skip-fetch --skip-reconciliation
+
+# Automated run (cron/scheduler)
+python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --non-interactive --json-output /var/log/billing/summary.json
 ```
 
-This will:
-1. Fetch Zimbra reports via SSH
-2. Parse and calculate usage
-3. Prompt for any new domains/CoS (interactive reconciliation)
-4. Generate draft invoices in QBO
-5. Create Excel report
+---
 
-### Automated Run (Non-Interactive for Cron/Scheduling)
+## Global Options
+
+Available for most commands:
+
+- `--debug` - Enable detailed debug logging
+- `--config PATH` - Specify alternate config.json file path
+
+---
+
+## Configuration
+
+The system requires **both** configuration files:
+
+### Required: `.env` file
+Contains sensitive credentials (Zimbra SSH, QuickBooks OAuth):
 
 ```bash
-python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --non-interactive
+cp .env.example .env
+# Edit with your credentials
 ```
 
-Perfect for scheduled/automated runs:
-- Skips all interactive prompts
-- Uses safe defaults for unmapped items
-- Reports what needs manual attention
-- Prevents duplicate invoices with idempotency
-- Safe to re-run the same period
+Required variables:
+- `ZIMBRA_HOST` - Zimbra server hostname
+- `ZIMBRA_USERNAME` - SSH username
+- `ZIMBRA_KEY_FILE` - Path to SSH private key
+- `ZIMBRA_REPORT_PATH` - Path to usage reports on Zimbra server
+- `QBO_CLIENT_ID` - QuickBooks OAuth client ID
+- `QBO_CLIENT_SECRET` - QuickBooks OAuth client secret
+- `QBO_REDIRECT_URI` - OAuth redirect URI
+- `QBO_COMPANY_ID` - QuickBooks company ID
+- `QBO_SANDBOX` - `true` for sandbox, `false` for production
+- `DATABASE_PATH` - Path to SQLite database
 
-### Automated Run with JSON Output (CI/CD Pipelines)
-
-For automation and monitoring, use the `--json-output` flag to generate a machine-readable summary:
+### Optional: `data/config.json` file
+Contains exclusion patterns and other settings:
 
 ```bash
-python -m src.ui.cli run-monthly-billing \
-  --year 2025 --month 10 \
-  --non-interactive \
-  --json-output /var/log/billing/2025-10-summary.json
+cp data/config.json.example data/config.json
+# Edit exclusions as needed
 ```
 
-**JSON Output Format:**
+Used for:
+- Domain exclusion patterns (wildcard matching)
+- CoS exclusion patterns
+- Logging configuration
+
+**Configuration Priority:** Environment variables (`.env`) override `config.json` which overrides defaults.
+
+---
+
+## JSON Output Format
+
+When using `--json-output`, the system generates a machine-readable summary:
+
 ```json
 {
   "run_metadata": {
     "timestamp": "2025-10-01T02:00:00",
-    "billing_period": {"year": 2025, "month": 10}
+    "billing_period": {
+      "year": 2025,
+      "month": 10
+    }
   },
   "invoices": {
     "total_count": 87,
@@ -132,267 +270,33 @@ python -m src.ui.cli run-monthly-billing \
   },
   "reconciliation": {
     "skipped_domains": 0,
-    "skipped_cos": 0
+    "skipped_cos": 0,
+    "unmapped_items": []
   },
   "status": "success"
 }
 ```
 
 **Use Cases:**
-- Monitor billing runs from CI/CD pipelines
-- Parse results in automated workflows
-- Track invoice counts and amounts over time
-- Alert on failures or skipped items
-- Integrate with monitoring systems (Datadog, Prometheus, etc.)
+- CI/CD pipeline integration
+- Monitoring and alerting
+- Automated result parsing
+- Historical tracking
 
-### Step-by-Step Workflow
+---
 
-If you prefer more control:
+## Exit Codes
 
-#### 1. Generate Report Only
+- `0` - Success
+- `1` - General error
+- `2` - Configuration error
+- `3` - Connection error (Zimbra or QuickBooks)
+- `4` - Authorization error
 
-```bash
-python -m src.ui.cli generate-report --year 2025 --month 10
-```
+---
 
-#### 2. Preview Invoices
+## Additional Resources
 
-```bash
-# Preview all invoices
-python -m src.ui.cli preview-invoices --year 2025 --month 10
-
-# Preview specific customer
-python -m src.ui.cli preview-invoices --year 2025 --month 10 --customer-id 5
-```
-
-#### 3. Reconcile Domains
-
-```bash
-python -m src.ui.cli reconcile-domains
-```
-
-#### 4. Reconcile CoS
-
-```bash
-python -m src.ui.cli reconcile-cos
-```
-
-#### 5. Run Billing (Skip Steps)
-
-```bash
-# Skip fetching (use existing data)
-python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --skip-fetch
-
-# Skip reconciliation
-python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --skip-reconciliation
-
-# Skip invoice generation (report only)
-python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --skip-invoices
-
-# Non-interactive mode (for automation)
-python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --non-interactive
-
-# With JSON output for machine processing
-python -m src.ui.cli run-monthly-billing --year 2025 --month 10 --json-output summary.json
-```
-
-### Safe Re-runs and Idempotency
-
-**The system now prevents duplicate invoices automatically.**
-
-You can safely re-run the same billing period multiple times:
-
-```bash
-# First run - creates invoices
-python -m src.ui.cli run-monthly-billing --year 2025 --month 10
-
-# Second run (same period) - skips existing invoices
-python -m src.ui.cli run-monthly-billing --year 2025 --month 10
-```
-
-The system will:
-- Detect invoices already created for that period
-- Skip creating duplicates
-- Log which invoices were skipped
-- Process only new/missing invoices
-
-This is safe for:
-- Recovering from partial failures
-- Re-running after fixing data issues
-- Testing invoice generation multiple times
-
-## Command Reference
-
-### Core Commands
-
-- `run-monthly-billing` - Run complete monthly billing workflow
-- `generate-report` - Generate Excel report only
-- `preview-invoices` - Preview invoices without creating
-- `reconcile-domains` - Manually assign domains to customers
-- `reconcile-cos` - Manually map CoS to QBO items
-- `sync-customers` - Sync QBO customers to database
-- `authorize-qbo` - Authorize QBO access
-- `test-connections` - Test Zimbra and QBO connections
-- `init-db` - Initialize/reset database
-
-### Command Options
-
-**Global Options** (most commands):
-- `--debug` - Enable debug logging
-- `--config PATH` - Use custom config file
-
-**run-monthly-billing Options**:
-- `--year YEAR` - Billing year (default: current year)
-- `--month MONTH` - Billing month (default: last month)
-- `--skip-fetch` - Skip fetching reports (use existing data)
-- `--skip-reconciliation` - Skip reconciliation prompts
-- `--skip-invoices` - Skip invoice generation (report only)
-- `--draft` - Create draft invoices (default: true)
-- `--non-interactive` - Run without prompts (for automation)
-- `--json-output PATH` - Write JSON summary to file
-
-## Typical Monthly Process
-
-### First Time Setup (One-time)
-1. Install and configure
-2. Authorize QBO
-3. Sync customers
-4. Manually assign all existing domains to customers
-5. Map all CoS to QBO items
-
-### Monthly Billing (Recurring)
-
-**Interactive Mode** (first few months):
-1. Run billing command for previous month
-2. Review and approve any new domain/CoS assignments
-3. Verify draft invoices in QuickBooks
-4. Send invoices to customers
-
-**Automated Mode** (once stable):
-1. Set up cron job or scheduled task
-2. Run with `--non-interactive` flag
-3. System auto-processes known items
-4. Check JSON summary for any issues
-5. Manually reconcile only new items
-
-### Scheduled/Automated Billing
-
-Once your domain and CoS mappings are stable, you can automate monthly billing:
-
-#### Linux/macOS Cron Example
-
-```bash
-# Edit crontab
-crontab -e
-
-# Run on 1st of each month at 2 AM
-0 2 1 * * cd ~/zimbra-qbo-billing && python3 -m src.ui.cli run-monthly-billing --non-interactive --json-output /var/log/billing/$(date +\%Y-\%m).json 2>&1 | logger -t zimbra-billing
-```
-
-#### Windows Task Scheduler
-
-1. Open Task Scheduler
-2. Create Basic Task
-3. Trigger: Monthly (1st day, 2:00 AM)
-4. Action: Start a program
-   - Program: `python`
-   - Arguments: `-m src.ui.cli run-monthly-billing --non-interactive --json-output C:\billing-logs\summary.json`
-   - Start in: `C:\zimbra-qbo-billing`
-
-#### Monitoring Automated Runs
-
-Check the JSON output file:
-```bash
-# View summary
-cat /var/log/billing/2025-10.json | jq '.status'
-
-# Check for failures
-cat /var/log/billing/2025-10.json | jq '.failures'
-
-# See skipped items
-cat /var/log/billing/2025-10.json | jq '.reconciliation.items'
-```
-3. Review generated invoices in QBO (they're drafts)
-4. Review Excel report
-5. Send invoices from QBO
-
-## Tips
-
-### Testing
-- Use `--skip-invoices` to generate reports without creating invoices
-- Use `preview-invoices` to see what would be billed
-- Invoices are created as drafts by default for review
-
-### Automation
-- Set up a cron job to run billing on the 1st of each month
-- Use `--skip-reconciliation` if you want fully automated runs
-  (new items will be skipped until manually reconciled)
-
-### Troubleshooting
-- Check logs in `data/logs/`
-- Use `--debug` flag for verbose output
-- Run `test-connections` to verify connectivity
-- Make sure exclusion patterns are configured correctly
-
-## Configuration Tips
-
-### Exclusion Patterns
-
-Add patterns to `config.json` to exclude domains/CoS from billing:
-
-```json
-{
-  "exclusions": {
-    "domains": [
-      "*.test",
-      "*-archive",
-      "internal.company.com"
-    ],
-    "cos_patterns": [
-      "*-test",
-      "*-trial",
-      "internal-*"
-    ]
-  }
-}
-```
-
-Patterns use shell-style wildcards:
-- `*` matches any characters
-- `?` matches single character
-- Case-insensitive matching
-
-### SSH Key Setup
-
-For passwordless Zimbra access:
-
-```bash
-# Generate key if needed
-ssh-keygen -t rsa -b 4096
-
-# Copy to Zimbra server
-ssh-copy-id zimbra@your-zimbra-server.com
-
-# Test connection
-ssh zimbra@your-zimbra-server.com ls -l /opt/MonthlyUsageReports/
-```
-
-## Database Maintenance
-
-### Backup Database
-
-The database is backed up automatically before major operations, but you can also:
-
-```bash
-cp data/billing.db data/billing.db.backup-$(date +%Y%m%d)
-```
-
-### Reset Database
-
-If you need to start fresh:
-
-```bash
-python -m src.ui.cli init-db
-```
-
-WARNING: This deletes all data!
+- **5_OPERATOR_GUIDE.md** - Monthly billing workflow and procedures
+- **3_APPLICATION_DEPLOYMENT.md** - Initial setup and configuration
+- **PROJECT_REFERENCE.md** - Technical architecture and features
