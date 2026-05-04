@@ -30,6 +30,7 @@ import click
 
 from .config import get_config
 from .database.migrations import get_db_manager, init_database
+from .database.models import CoSMapping
 from .database.queries import QueryHelper
 from .zimbra.fetcher import ZimbraFetcher
 from .zimbra.parser import ZimbraReportParser
