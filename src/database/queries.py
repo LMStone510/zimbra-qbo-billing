@@ -267,16 +267,46 @@ class QueryHelper:
 
         Returns:
             CoSMapping object
+
+        Note:
+            Upserts by cos_name. cos_name has a UNIQUE constraint, so if a
+            mapping already exists (active or deactivated) it is updated and
+            reactivated rather than inserted, avoiding an IntegrityError.
         """
-        mapping = CoSMapping(
-            cos_name=cos_name,
-            qbo_item_id=qbo_item_id,
-            qbo_item_name=qbo_item_name,
-            unit_price=unit_price,
-            quota_gb=quota_gb,
-            description=description
-        )
-        self.session.add(mapping)
+        # Upsert: reuse an existing row for this cos_name instead of colliding
+        # with the UNIQUE(cos_name) constraint. Note we deliberately do NOT
+        # filter on active here, so a previously deactivated mapping is reused.
+        mapping = self.session.query(CoSMapping).filter(
+            CoSMapping.cos_name == cos_name
+        ).first()
+
+        if mapping:
+            mapping.qbo_item_id = qbo_item_id
+            mapping.qbo_item_name = qbo_item_name
+            mapping.unit_price = unit_price
+            mapping.quota_gb = quota_gb
+            mapping.description = description
+            mapping.active = True  # reactivate if it had been deactivated
+            mapping.updated_at = datetime.utcnow()
+        else:
+            mapping = CoSMapping(
+                cos_name=cos_name,
+                qbo_item_id=qbo_item_id,
+                qbo_item_name=qbo_item_name,
+                unit_price=unit_price,
+                quota_gb=quota_gb,
+                description=description
+            )
+            self.session.add(mapping)
+
+        # Mark the discovery record as handled so this CoS stops appearing in
+        # the "unmapped" list returned by get_unmapped_items().
+        discovery = self.session.query(CoSDiscovery).filter(
+            CoSDiscovery.cos_name == cos_name
+        ).first()
+        if discovery:
+            discovery.mapped = True
+
         self.session.commit()
         return mapping
 
